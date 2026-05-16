@@ -1,765 +1,490 @@
-import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Utensils, Search, ShoppingBag, Heart, Star, Clock, 
-  ChevronRight, MapPin, User, LogOut, Plus, Minus, 
-  Flame, Leaf, Coffee, CheckCircle, Smartphone, 
-  CreditCard, QrCode, ArrowRight, Menu as MenuIcon, X,
-  Trash2, Award, Zap, Smile, TrendingUp, Moon, Sun,
-  Ticket, ShieldCheck, Wallet, ChevronDown, Package,
-  ChefHat, Store, Cake
-} from 'lucide-react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, onSnapshot, addDoc, query, deleteDoc } from 'firebase/firestore';
-
-// Firebase Configuration
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'ksit-foodverse-v1';
-
-// --- Context Definitions ---
-const AppContext = createContext();
-
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [view, setView] = useState('splash');
-  const [cart, setCart] = useState([]);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [orderTracking, setOrderTracking] = useState(null);
-
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (error) {
-        console.error("Auth error:", error);
-      }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (view === 'splash') setView('auth');
-    }, 3500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Load Cart from Firestore
-  useEffect(() => {
-    if (!user) return;
-    const cartRef = doc(db, 'artifacts', appId, 'users', user.uid, 'cart', 'current');
-    const unsubscribe = onSnapshot(cartRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setCart(docSnap.data().items || []);
-      }
-    }, (error) => console.error("Firestore Cart Error:", error));
-    return () => unsubscribe();
-  }, [user]);
-
-  const updateCartInFirestore = async (newItems) => {
-    if (!user) return;
-    const cartRef = doc(db, 'artifacts', appId, 'users', user.uid, 'cart', 'current');
-    await setDoc(cartRef, { items: newItems }, { merge: true });
-  };
-
-  const addToCart = (item) => {
-    const existing = cart.find(i => i.id === item.id);
-    let updated;
-    if (existing) {
-      updated = cart.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
-    } else {
-      updated = [...cart, { ...item, qty: 1 }];
-    }
-    setCart(updated);
-    updateCartInFirestore(updated);
-  };
-
-  const removeFromCart = (id) => {
-    const updated = cart.map(i => i.id === id ? { ...i, qty: i.qty - 1 } : i).filter(i => i.qty > 0);
-    setCart(updated);
-    updateCartInFirestore(updated);
-  };
-
-  const clearCart = () => {
-    setCart([]);
-    updateCartInFirestore([]);
-  };
-
-  const totalPrice = useMemo(() => cart.reduce((acc, curr) => acc + (curr.price * curr.qty), 0), [cart]);
-
-  const categories = ['All', 'South Indian', 'North Indian', 'Chinese', 'Fast Food', 'Healthy', 'Beverages', 'Desserts'];
-  
-  const menuItems = [
-    // South Indian
-    { id: 1, name: "Royal Ghee Masala Dosa", price: 65, category: "South Indian", rating: 4.8, cal: 320, time: "10 min", img: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=400", veg: true, trending: true },
-    { id: 9, name: "Steamed Idli (2 pcs)", price: 35, category: "South Indian", rating: 4.7, cal: 120, time: "5 min", img: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=400", veg: true },
-    { id: 10, name: "Crispy Medu Vada", price: 45, category: "South Indian", rating: 4.6, cal: 210, time: "8 min", img: "https://images.unsplash.com/photo-1621210185317-90f77242d596?auto=format&fit=crop&w=400", veg: true },
-    { id: 11, name: "Onion Rava Dosa", price: 75, category: "South Indian", rating: 4.5, cal: 350, time: "12 min", img: "https://images.unsplash.com/photo-1630409351241-e90e7f5e434d?auto=format&fit=crop&w=400", veg: true },
-    { id: 25, name: "Venn Pongal", price: 55, category: "South Indian", rating: 4.4, cal: 380, time: "10 min", img: "https://images.unsplash.com/photo-1616428751314-1188d44a2754?auto=format&fit=crop&w=400", veg: true },
-
-    // Fast Food
-    { id: 2, name: "Monster Paneer Burger", price: 95, category: "Fast Food", rating: 4.5, cal: 540, time: "12 min", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400", veg: true, trending: true },
-    { id: 8, name: "Peri Peri Fries", price: 55, category: "Fast Food", rating: 4.4, cal: 310, time: "10 min", img: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=400", veg: true },
-    { id: 12, name: "Cheesy Veggie Pizza", price: 160, category: "Fast Food", rating: 4.7, cal: 680, time: "15 min", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=400", veg: true },
-    { id: 13, name: "Grilled Cheese Sandwich", price: 60, category: "Fast Food", rating: 4.3, cal: 320, time: "10 min", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=400", veg: true },
-    { id: 26, name: "Pink Sauce Pasta", price: 140, category: "Fast Food", rating: 4.6, cal: 510, time: "12 min", img: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=400", veg: true },
-
-    // North Indian
-    { id: 6, name: "Amritsari Kulcha Combo", price: 120, category: "North Indian", rating: 4.7, cal: 620, time: "20 min", img: "https://images.unsplash.com/photo-1626132646529-500dd19c4834?auto=format&fit=crop&w=400", veg: true },
-    { id: 14, name: "Chole Bhature", price: 90, category: "North Indian", rating: 4.8, cal: 720, time: "15 min", img: "https://images.unsplash.com/photo-1626132646529-500dd19c4834?auto=format&fit=crop&w=400", veg: true, trending: true },
-    { id: 15, name: "Paneer Butter Masala", price: 150, category: "North Indian", rating: 4.9, cal: 580, time: "20 min", img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=400", veg: true },
-    { id: 27, name: "Dal Makhani with Naan", price: 180, category: "North Indian", rating: 4.8, cal: 650, time: "25 min", img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=400", veg: true },
-
-    // Chinese
-    { id: 3, name: "Schezwan Fried Rice", price: 80, category: "Chinese", rating: 4.2, cal: 410, time: "15 min", img: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=400", veg: true },
-    { id: 16, name: "Veg Manchurian Dry", price: 90, category: "Chinese", rating: 4.5, cal: 380, time: "15 min", img: "https://images.unsplash.com/photo-1637806930600-37fa8892069d?auto=format&fit=crop&w=400", veg: true },
-    { id: 17, name: "Paneer Momos (6 pcs)", price: 70, category: "Chinese", rating: 4.6, cal: 280, time: "10 min", img: "https://images.unsplash.com/photo-1625220194771-7ebdea0b70b9?auto=format&fit=crop&w=400", veg: true },
-    { id: 28, name: "Hakka Noodles", price: 85, category: "Chinese", rating: 4.4, cal: 420, time: "12 min", img: "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=400", veg: true },
-
-    // Healthy
-    { id: 5, name: "Quinoa Veggie Salad", price: 110, category: "Healthy", rating: 4.6, cal: 210, time: "8 min", img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400", veg: true },
-    { id: 18, name: "Fruit Platter", price: 65, category: "Healthy", rating: 4.8, cal: 150, time: "5 min", img: "https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?auto=format&fit=crop&w=400", veg: true },
-    { id: 19, name: "Sprouted Moong Salad", price: 50, category: "Healthy", rating: 4.7, cal: 180, time: "5 min", img: "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=400", veg: true },
-    { id: 29, name: "Vegetable Poha", price: 40, category: "Healthy", rating: 4.5, cal: 220, time: "8 min", img: "https://images.unsplash.com/photo-1601050633647-8f1f2bc6ca41?auto=format&fit=crop&w=400", veg: true },
-
-    // Beverages
-    { id: 4, name: "Classic Filter Coffee", price: 20, category: "Beverages", rating: 4.9, cal: 80, time: "5 min", img: "https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&w=400", veg: true },
-    { id: 7, name: "Midnight Choco Shake", price: 75, category: "Beverages", rating: 4.8, cal: 450, time: "7 min", img: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=400", veg: true },
-    { id: 20, name: "Masala Chai", price: 15, category: "Beverages", rating: 4.9, cal: 90, time: "5 min", img: "https://images.unsplash.com/photo-1561336313-0bd5e0b27ec8?auto=format&fit=crop&w=400", veg: true },
-    { id: 21, name: "Fresh Lime Soda", price: 30, category: "Beverages", rating: 4.4, cal: 110, time: "5 min", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=400", veg: true },
-    { id: 30, name: "Mango Lassi", price: 45, category: "Beverages", rating: 4.7, cal: 280, time: "6 min", img: "https://images.unsplash.com/photo-1543339308-43e59d6b73a6?auto=format&fit=crop&w=400", veg: true },
-
-    // Desserts
-    { id: 22, name: "Gulab Jamun (2 pcs)", price: 40, category: "Desserts", rating: 4.9, cal: 320, time: "2 min", img: "https://images.unsplash.com/photo-1589119908995-c6837fa14848?auto=format&fit=crop&w=400", veg: true },
-    { id: 23, name: "Warm Choco Brownie", price: 80, category: "Desserts", rating: 4.7, cal: 420, time: "5 min", img: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=400", veg: true, trending: true },
-    { id: 24, name: "Kesari Rasmalai", price: 60, category: "Desserts", rating: 4.8, cal: 280, time: "3 min", img: "https://images.unsplash.com/photo-1626132646529-500dd19c4834?auto=format&fit=crop&w=400", veg: true },
-    { id: 31, name: "Sizzling Brownie", price: 120, category: "Desserts", rating: 4.9, cal: 650, time: "8 min", img: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=400", veg: true }
-  ];
-
-  const contextValue = { 
-    user, view, setView, cart, addToCart, removeFromCart, 
-    clearCart, totalPrice, activeCategory, setActiveCategory, 
-    searchQuery, setSearchQuery, categories, menuItems, 
-    orderTracking, setOrderTracking, isDarkMode, setIsDarkMode
-  };
-
-  return (
-    <AppContext.Provider value={contextValue}>
-      <div className={`min-h-screen relative transition-colors duration-500 ${isDarkMode ? 'bg-[#0A0D12] text-white' : 'bg-[#FFFBF2] text-slate-900'} font-['Poppins'] select-none overflow-x-hidden`}>
-        {/* Animated Background Icons */}
-        <div className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05] z-0 overflow-hidden">
-           <BackgroundIcons />
-        </div>
-
-        <AnimatePresence mode='wait'>
-          {view === 'splash' && <SplashScreen key="splash" />}
-          {view === 'auth' && <AuthPage key="auth" />}
-          {view === 'home' && <HomePage key="home" />}
-          {view === 'menu' && <MenuPage key="menu" />}
-          {view === 'checkout' && <CheckoutPage key="checkout" />}
-          {view === 'success' && <SuccessPage key="success" />}
-        </AnimatePresence>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KSIT FoodVerse | Campus Dining</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- GSAP for animations (Replacing Framer Motion) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .view { display: none; opacity: 0; }
+        .view.active { display: block; opacity: 1; }
+        .matte-card { background: white; border: 1px solid #f1f5f9; }
+        .dark .matte-card { background: #161B22; border: 1px solid #1e293b; }
+        .ksit-orange { background-color: #FF5C00; }
+        .ksit-orange-text { color: #FF5C00; }
         
-        {(['home', 'menu', 'profile'].includes(view)) && <GlobalNavigation />}
-        {(['home', 'menu'].includes(view)) && cart.length > 0 && <FloatingCartBar />}
-      </div>
-    </AppContext.Provider>
-  );
-}
+        /* Progress Bar Animation */
+        #progress-line { transition: width 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="bg-[#FFFBF2] text-slate-900 select-none overflow-x-hidden transition-colors duration-500">
 
-function BackgroundIcons() {
-  const icons = [Utensils, Coffee, Leaf, Flame, Star, Heart];
-  return (
-    <>
-      {[...Array(20)].map((_, i) => {
-        const Icon = icons[i % icons.length];
-        return (
-          <motion.div
-            key={i}
-            initial={{ 
-              x: Math.random() * 100 + "%", 
-              y: Math.random() * 100 + "%",
-              rotate: 0 
-            }}
-            animate={{ 
-              y: ["0%", "100%", "0%"],
-              rotate: [0, 360]
-            }}
-            transition={{ 
-              duration: 20 + Math.random() * 20, 
-              repeat: Infinity, 
-              ease: "linear" 
-            }}
-            className="absolute"
-          >
-            <Icon size={Math.random() * 40 + 20} />
-          </motion.div>
-        );
-      })}
-    </>
-  );
-}
+    <!-- Background Icons (Animated via Script) -->
+    <div id="background-icons" class="fixed inset-0 pointer-events-none opacity-[0.03] z-0"></div>
 
-function SplashScreen() {
-  return (
-    <motion.div 
-      initial={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[200] bg-[#FF5C00] flex flex-col items-center justify-center overflow-hidden"
-    >
-      <motion.div 
-        initial={{ scale: 0.5, opacity: 0 }} 
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', damping: 12 }}
-      >
-        <div className="w-32 h-32 bg-white rounded-[2.5rem] flex items-center justify-center shadow-2xl">
-          <Utensils className="text-[#FF5C00] w-16 h-16" />
+    <!-- Splash Screen -->
+    <div id="splash" class="fixed inset-0 z-[200] bg-[#FF5C00] flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="w-32 h-32 bg-white rounded-[2.5rem] flex items-center justify-center shadow-2xl scale-0" id="splash-logo">
+            <i data-lucide="utensils" class="text-[#FF5C00] w-16 h-16"></i>
         </div>
-      </motion.div>
-      <motion.h1 
-        initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}
-        className="text-4xl font-black text-white mt-8 tracking-tighter"
-      >
-        FoodVerse
-      </motion.h1>
-      <p className="text-orange-100 text-sm font-bold tracking-[0.2em] uppercase mt-2">KSIT Campus Dining</p>
-    </motion.div>
-  );
-}
+        <h1 class="text-4xl font-black text-white mt-8 tracking-tighter opacity-0" id="splash-title">FoodVerse</h1>
+        <p class="text-orange-100 text-sm font-bold tracking-[0.2em] uppercase mt-2 opacity-0" id="splash-sub">KSIT Campus Dining</p>
+    </div>
 
-function AuthPage() {
-  const { setView } = useContext(AppContext);
-  const [isLogin, setIsLogin] = useState(true);
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="min-h-screen flex items-center justify-center p-6 relative z-10"
-    >
-      <div className="w-full max-w-md bg-white dark:bg-[#161B22] p-10 rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.12)] border border-slate-100 dark:border-slate-800">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 mb-4 bg-orange-600 px-4 py-2 rounded-full shadow-lg shadow-orange-600/20">
-            <Flame className="text-white w-4 h-4" />
-            <span className="text-white text-[10px] font-black uppercase tracking-widest">Hungry at KSIT?</span>
-          </div>
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            {isLogin ? 'Welcome Back' : 'Join the Verse'}
-          </h2>
-          <p className="text-slate-400 text-sm mt-2 font-medium">Grab your token and fuel your brain</p>
-        </div>
-
-        <div className="space-y-4">
-          <input type="text" placeholder="College ID" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-2xl py-4 px-6 focus:ring-2 focus:ring-orange-500 outline-none transition-shadow dark:text-white" />
-          <input type="password" placeholder="Password" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-2xl py-4 px-6 focus:ring-2 focus:ring-orange-500 outline-none transition-shadow dark:text-white" />
-          
-          <motion.button 
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setView('home')}
-            className="w-full bg-[#FF5C00] text-white font-black py-4 rounded-2xl shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-colors mt-4"
-          >
-            {isLogin ? 'Sign In Now' : 'Create Account'}
-          </motion.button>
-
-          <div className="flex items-center gap-4 py-4">
-            <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
-            <span className="text-slate-300 text-[10px] font-black uppercase">Or</span>
-            <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
-          </div>
-
-          <button className="w-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
-            <Smartphone size={18} className="text-blue-500" />
-            Sign in with Campus ID
-          </button>
-        </div>
-
-        <p className="text-center mt-8 text-sm text-slate-500">
-          {isLogin ? "New to the cafeteria?" : "Already part of the tribe?"}
-          <button onClick={() => setIsLogin(!isLogin)} className="text-[#FF5C00] font-black ml-1 hover:underline">
-            {isLogin ? 'Sign Up' : 'Log In'}
-          </button>
-        </p>
-      </div>
-    </motion.div>
-  );
-}
-
-function GlobalNavigation() {
-  const { setView, isDarkMode, setIsDarkMode } = useContext(AppContext);
-  
-  return (
-    <nav className="fixed top-0 w-full z-[150] px-6 py-4 flex items-center justify-between pointer-events-none">
-      <div className="bg-white dark:bg-[#161B22] px-6 py-3 rounded-full shadow-xl border border-slate-100 dark:border-slate-800 pointer-events-auto flex items-center gap-3">
-        <div className="bg-[#FF5C00] p-2 rounded-xl text-white">
-          <Utensils size={18} />
-        </div>
-        <span className="font-black tracking-tighter dark:text-white">FoodVerse</span>
-      </div>
-
-      <div className="flex gap-3 pointer-events-auto">
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          className="w-12 h-12 rounded-full bg-white dark:bg-[#161B22] shadow-xl border border-slate-100 dark:border-slate-800 flex items-center justify-center dark:text-white"
-        >
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </motion.button>
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setView('profile')}
-          className="w-12 h-12 rounded-full bg-white dark:bg-[#161B22] shadow-xl border border-white dark:border-slate-800 flex items-center justify-center overflow-hidden"
-        >
-          <img src="https://i.pravatar.cc/100?img=12" alt="p" className="w-full h-full object-cover" />
-        </motion.button>
-      </div>
-    </nav>
-  );
-}
-
-function HomePage() {
-  const { setView, menuItems } = useContext(AppContext);
-  const trending = menuItems.filter(i => i.trending);
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-28 pb-32 relative z-10">
-      <section className="px-6 mb-12">
-        <div className="relative bg-[#FF5C00] rounded-[3.5rem] p-10 lg:p-20 overflow-hidden min-h-[450px] flex items-center shadow-2xl shadow-orange-600/30">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200')] bg-cover bg-center mix-blend-soft-light opacity-30" />
-          
-          <div className="relative z-10 max-w-2xl">
-            <motion.h1 
-              initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}
-              className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-10"
-            >
-              The KSIT <br/><span className="text-orange-200">Feast.</span>
-            </motion.h1>
-            <motion.div className="flex flex-wrap gap-4">
-              <motion.button 
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setView('menu')}
-                className="bg-white text-orange-600 px-10 py-5 rounded-[2rem] font-black text-xl shadow-2xl shadow-black/20"
-              >
-                Order Now
-              </motion.button>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 mb-12 grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { icon: <Clock size={24}/>, label: 'Avg Waiting', val: '8m', color: 'text-green-500' },
-          { icon: <User size={24}/>, label: 'Active Now', val: '42', color: 'text-orange-500' },
-          { icon: <Zap size={24}/>, label: 'Service', val: 'Fast', color: 'text-blue-500' },
-          { icon: <Award size={24}/>, label: 'Quality', val: '100%', color: 'text-purple-500' }
-        ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-[#161B22] p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
-            <div className={`${stat.color} mb-3`}>{stat.icon}</div>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{stat.label}</p>
-            <h4 className="text-3xl font-black dark:text-white tracking-tighter">{stat.val}</h4>
-          </div>
-        ))}
-      </section>
-
-      <section className="mb-12">
-        <div className="px-6 flex items-center justify-between mb-8">
-          <h3 className="text-3xl font-black dark:text-white tracking-tight">Hot Favorites 🔥</h3>
-          <button onClick={() => setView('menu')} className="text-orange-600 font-black text-xs uppercase tracking-[0.2em] hover:opacity-70 transition-opacity">View All</button>
-        </div>
-        <div className="flex gap-6 overflow-x-auto px-6 pb-6 no-scrollbar">
-          {trending.map(item => (
-            <motion.div 
-              key={item.id}
-              whileHover={{ y: -8 }}
-              className="flex-shrink-0 w-72 bg-white dark:bg-[#161B22] rounded-[3rem] p-4 shadow-sm border border-slate-100 dark:border-slate-800 cursor-pointer"
-              onClick={() => setView('menu')}
-            >
-              <div className="relative h-52 overflow-hidden rounded-[2.5rem] mb-5">
-                <img src={item.img} alt={item.name} className="w-full h-full object-cover" />
-                <div className="absolute top-4 right-4 bg-white p-2 rounded-2xl text-pink-500 shadow-md">
-                  <Heart size={18} fill="currentColor" />
-                </div>
-              </div>
-              <h4 className="font-black text-xl mb-1 dark:text-white px-2 tracking-tight">{item.name}</h4>
-              <div className="flex items-center justify-between px-2">
-                <span className="text-orange-600 font-black text-2xl">₹{item.price}</span>
-                <div className="flex items-center gap-1 text-yellow-500 font-black text-sm">
-                  <Star size={14} fill="currentColor" /> {item.rating}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-    </motion.div>
-  );
-}
-
-function MenuPage() {
-  const { menuItems, activeCategory, setActiveCategory, categories, addToCart, searchQuery, setSearchQuery } = useContext(AppContext);
-
-  const filtered = useMemo(() => {
-    return menuItems.filter(item => {
-      const matchCat = activeCategory === 'All' || item.category === activeCategory;
-      const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [activeCategory, searchQuery]);
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-28 pb-40 relative z-10">
-      <div className="px-6 mb-10">
-        <h2 className="text-5xl font-black mb-8 dark:text-white tracking-tighter">Campus <span className="text-orange-600">Menu</span></h2>
-        <div className="relative">
-          <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
-          <input 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            type="text" 
-            placeholder="What's for lunch?" 
-            className="w-full bg-white dark:bg-[#161B22] border border-slate-100 dark:border-slate-800 rounded-[2.5rem] py-6 pl-16 pr-8 outline-none focus:ring-4 focus:ring-orange-500/10 text-lg font-bold dark:text-white shadow-sm"
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-3 overflow-x-auto px-6 mb-12 no-scrollbar">
-        {categories.map(cat => (
-          <button 
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`flex-shrink-0 px-8 py-3.5 rounded-full font-black text-[11px] uppercase tracking-[0.2em] shadow-sm transition-colors ${
-              activeCategory === cat 
-              ? 'bg-[#FF5C00] text-white shadow-orange-600/20' 
-              : 'bg-white dark:bg-[#161B22] text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-800'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 px-6">
-        <AnimatePresence mode="popLayout">
-          {filtered.map((item, idx) => (
-            <motion.div 
-              key={item.id}
-              layout
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-[#161B22] rounded-[3.5rem] p-5 border border-slate-100 dark:border-slate-800 group transition-shadow hover:shadow-2xl"
-            >
-              <div className="relative h-60 overflow-hidden rounded-[2.5rem] mb-6">
-                <img src={item.img} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                <div className="absolute top-5 left-5 bg-[#FF5C00] px-4 py-1.5 rounded-full text-white text-[9px] font-black tracking-widest uppercase">
-                  {item.category}
-                </div>
-              </div>
-              
-              <div className="px-2">
-                <h4 className="font-black text-2xl dark:text-white mb-2 tracking-tight leading-tight">{item.name}</h4>
-                <div className="flex items-center gap-4 text-slate-400 text-[10px] font-black mb-8 uppercase tracking-widest">
-                  <span className="flex items-center gap-1.5"><Clock size={14}/> {item.time}</span>
-                  <span className="flex items-center gap-1.5"><Flame size={14}/> {item.cal} cal</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-slate-900 dark:text-white">₹{item.price}</span>
-                  <motion.button 
-                    whileTap={{ scale: 0.8 }}
-                    onClick={() => addToCart(item)}
-                    className="bg-[#FF5C00] text-white w-14 h-14 rounded-3xl flex items-center justify-center shadow-xl shadow-orange-600/30 hover:bg-orange-700 transition-colors"
-                  >
-                    <Plus size={28} />
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-    </motion.div>
-  );
-}
-
-function FloatingCartBar() {
-  const { cart, totalPrice, setView } = useContext(AppContext);
-  const totalItems = cart.reduce((a, b) => a + b.qty, 0);
-
-  return (
-    <motion.div 
-      initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-      className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[92%] max-w-lg z-[180]"
-    >
-      <div className="bg-[#111827] p-5 rounded-[3rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)] flex items-center justify-between border border-white/5">
-        <div className="flex items-center gap-5 pl-2">
-          <div className="w-14 h-14 bg-[#FF5C00] rounded-[1.5rem] flex items-center justify-center text-white relative shadow-lg">
-            <ShoppingBag size={24} />
-            <span className="absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-[3px] border-[#111827]">
-              {totalItems}
-            </span>
-          </div>
-          <div>
-            <p className="text-white text-2xl font-black leading-none tracking-tighter">₹{totalPrice}</p>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1.5">Checkout Plate</p>
-          </div>
-        </div>
-        <motion.button 
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setView('checkout')}
-          className="bg-white text-[#111827] px-8 py-4 rounded-[1.5rem] font-black text-sm hover:bg-orange-50 transition-colors flex items-center gap-2 shadow-lg"
-        >
-          View Bill <ArrowRight size={20} />
-        </motion.button>
-      </div>
-    </motion.div>
-  );
-}
-
-function CheckoutPage() {
-  const { cart, totalPrice, addToCart, removeFromCart, setView } = useContext(AppContext);
-  const [coupon, setCoupon] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('upi');
-
-  const gst = Math.round(totalPrice * 0.05);
-  const platformFee = 5;
-  const finalTotal = totalPrice + gst + platformFee;
-
-  return (
-    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="pt-28 pb-32 px-6 max-w-2xl mx-auto relative z-10">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-5xl font-black dark:text-white tracking-tighter">The <span className="text-[#FF5C00]">Bill</span></h2>
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setView('menu')} 
-          className="w-14 h-14 rounded-full bg-white dark:bg-[#161B22] border border-slate-100 dark:border-slate-800 flex items-center justify-center dark:text-white shadow-sm"
-        >
-          <X size={24}/>
-        </motion.button>
-      </div>
-
-      <div className="space-y-4 mb-8">
-        {cart.map((item, idx) => (
-          <motion.div 
-            key={item.id} 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
-            className="bg-white dark:bg-[#161B22] p-5 rounded-[2.5rem] flex items-center gap-6 border border-slate-50 dark:border-slate-800 shadow-sm"
-          >
-            <img src={item.img} className="w-20 h-20 object-cover rounded-3xl" />
-            <div className="flex-1">
-              <h4 className="font-black text-lg dark:text-white tracking-tight">{item.name}</h4>
-              <p className="text-[#FF5C00] font-black">₹{item.price * item.qty}</p>
+    <!-- Navigation -->
+    <nav id="navbar" class="fixed top-0 w-full z-[150] px-6 py-4 flex items-center justify-between hidden">
+        <div class="bg-white px-6 py-3 rounded-full shadow-xl border border-slate-100 flex items-center gap-3 nav-matte">
+            <div class="bg-[#FF5C00] p-2 rounded-xl text-white">
+                <i data-lucide="utensils" size="18"></i>
             </div>
-            <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800 p-2 rounded-2xl">
-              <button onClick={() => removeFromCart(item.id)} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:bg-white transition-colors"><Minus size={16}/></button>
-              <span className="font-black text-base dark:text-white w-4 text-center">{item.qty}</span>
-              <button onClick={() => addToCart(item)} className="w-8 h-8 rounded-xl flex items-center justify-center text-orange-600 hover:bg-white transition-colors"><Plus size={16}/></button>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Coupon Section */}
-      <div className="bg-white dark:bg-[#161B22] p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 mb-8 shadow-sm">
-        <div className="flex items-center gap-3 mb-4">
-          <Ticket className="text-orange-600" size={20} />
-          <span className="font-black text-sm dark:text-white tracking-tight">Student Coupons</span>
+            <span class="font-black tracking-tighter dark:text-white">FoodVerse</span>
         </div>
-        <div className="flex gap-2">
-          <input 
-            type="text" 
-            placeholder="Enter Code (e.g. KSIT50)" 
-            className="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl py-4 px-6 text-sm font-bold dark:text-white outline-none focus:ring-2 focus:ring-orange-500/20"
-            value={coupon}
-            onChange={(e) => setCoupon(e.target.value)}
-          />
-          <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-transform">
-            Apply
-          </button>
-        </div>
-      </div>
-
-      {/* Payment Options Section */}
-      <div className="bg-white dark:bg-[#161B22] p-6 rounded-[3rem] border border-slate-100 dark:border-slate-800 mb-8 shadow-sm">
-        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-6">Payment Method</p>
-        <div className="space-y-3">
-          {[
-            { id: 'upi', label: 'UPI / GPay / PhonePe', icon: <QrCode size={20} /> },
-            { id: 'card', label: 'Credit / Debit Card', icon: <CreditCard size={20} /> },
-            { id: 'wallet', label: 'Campus Wallet', icon: <Wallet size={20} /> }
-          ].map(method => (
-            <button 
-              key={method.id}
-              onClick={() => setPaymentMethod(method.id)}
-              className={`w-full p-5 rounded-2xl border flex items-center justify-between transition-all ${
-                paymentMethod === method.id 
-                ? 'border-orange-500 bg-orange-500/5 ring-1 ring-orange-500' 
-                : 'border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className={`${paymentMethod === method.id ? 'text-orange-600' : 'text-slate-400'}`}>
-                  {method.icon}
-                </div>
-                <span className={`text-sm font-black ${paymentMethod === method.id ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
-                  {method.label}
-                </span>
-              </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === method.id ? 'border-orange-500' : 'border-slate-200 dark:border-slate-700'}`}>
-                 {paymentMethod === method.id && <div className="w-2.5 h-2.5 bg-orange-500 rounded-full" />}
-              </div>
+        <div class="flex gap-3">
+            <button id="theme-toggle" class="w-12 h-12 rounded-full bg-white shadow-xl border border-slate-100 flex items-center justify-center transition-transform active:scale-90">
+                <i data-lucide="moon" size="20" id="theme-icon"></i>
             </button>
-          ))}
+            <button class="w-12 h-12 rounded-full bg-white shadow-xl border border-white flex items-center justify-center overflow-hidden active:scale-90">
+                <img src="https://i.pravatar.cc/100?img=12" class="w-full h-full object-cover">
+            </button>
         </div>
-      </div>
+    </nav>
 
-      {/* Price Breakdown */}
-      <div className="bg-white dark:bg-[#161B22] p-8 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
-        <div className="space-y-3 mb-8">
-          <div className="flex justify-between text-slate-500 text-sm font-bold">
-            <span>Subtotal</span>
-            <span>₹{totalPrice}</span>
-          </div>
-          <div className="flex justify-between text-slate-500 text-sm font-bold">
-            <span>GST (5%)</span>
-            <span>₹{gst}</span>
-          </div>
-          <div className="flex justify-between text-slate-500 text-sm font-bold">
-            <span>Campus Fee</span>
-            <span>₹{platformFee}</span>
-          </div>
-          <div className="h-px bg-slate-100 dark:bg-slate-800 my-4" />
-          <div className="flex justify-between items-center">
-            <span className="font-black text-xl dark:text-white">Total</span>
-            <span className="text-4xl font-black text-[#FF5C00] tracking-tighter">₹{finalTotal}</span>
-          </div>
-        </div>
-        
-        <motion.button 
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setView('success')}
-          className="w-full bg-[#FF5C00] text-white py-6 rounded-[2rem] font-black text-2xl shadow-2xl shadow-orange-600/30 hover:bg-orange-700 transition-colors flex items-center justify-center gap-3"
-        >
-          Pay & Confirm <ArrowRight />
-        </motion.button>
-      </div>
-    </motion.div>
-  );
-}
-
-function SuccessPage() {
-  const { setView, clearCart, isDarkMode } = useContext(AppContext);
-  const [step, setStep] = useState(0);
-  
-  useEffect(() => { 
-    clearCart(); 
-    const timer = setInterval(() => {
-      setStep(prev => prev < 3 ? prev + 1 : prev);
-    }, 5000); // Progress every 5 seconds for simulation
-    return () => clearInterval(timer);
-  }, []);
-
-  const steps = [
-    { label: 'Confirmed', icon: <CheckCircle size={24}/> },
-    { label: 'Cooking', icon: <ChefHat size={24}/> },
-    { label: 'Ready', icon: <Package size={24}/> },
-    { label: 'Delivered', icon: <Store size={24}/> }
-  ];
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[200] bg-white dark:bg-[#0A0D12] flex flex-col items-center justify-center p-6 text-center"
-    >
-      <motion.div 
-        initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring' }}
-        className="w-32 h-32 bg-[#22C55E] rounded-full flex items-center justify-center text-white mb-10 shadow-2xl"
-      >
-        <CheckCircle size={60} strokeWidth={3} />
-      </motion.div>
-
-      <h2 className="text-5xl font-black dark:text-white mb-4 tracking-tighter">Order Placed!</h2>
-      <p className="text-slate-400 font-bold mb-12 text-lg">Your Token ID: <span className="text-[#FF5C00]">#KS-1024</span></p>
-
-      {/* Progress Bar Container */}
-      <div className="w-full max-w-lg bg-slate-50 dark:bg-[#161B22] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm relative mb-12">
-        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10 text-left">Live Tracking</p>
-        
-        <div className="relative flex justify-between">
-          {/* Horizontal Line Background */}
-          <div className="absolute top-6 left-0 w-full h-1 bg-slate-200 dark:bg-slate-700 z-0" />
-          
-          {/* Horizontal Line Active */}
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: `${(step / (steps.length - 1)) * 100}%` }}
-            className="absolute top-6 left-0 h-1 bg-orange-500 z-0"
-          />
-
-          {steps.map((s, i) => (
-            <div key={i} className="relative z-10 flex flex-col items-center gap-4">
-              <motion.div 
-                animate={{ 
-                  scale: i <= step ? 1.1 : 1,
-                  backgroundColor: i <= step ? '#FF5C00' : (isDarkMode ? '#1e293b' : '#f1f5f9'),
-                  color: i <= step ? '#ffffff' : '#94a3b8'
-                }}
-                className="w-12 h-12 rounded-full flex items-center justify-center shadow-md border-4 border-white dark:border-[#161B22]"
-              >
-                {s.icon}
-              </motion.div>
-              <span className={`text-[10px] font-black uppercase tracking-widest ${i <= step ? 'text-orange-600' : 'text-slate-400'}`}>
-                {s.label}
-              </span>
+    <!-- VIEWS -->
+    
+    <!-- Auth View -->
+    <section id="view-auth" class="view min-h-screen flex items-center justify-center p-6 z-10 relative">
+        <div class="w-full max-w-md bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 matte-card">
+            <div class="text-center mb-10">
+                <div class="inline-flex items-center gap-2 mb-4 bg-orange-600 px-4 py-2 rounded-full shadow-lg">
+                    <i data-lucide="flame" class="text-white w-4 h-4"></i>
+                    <span class="text-white text-[10px] font-black uppercase tracking-widest">Hungry at KSIT?</span>
+                </div>
+                <h2 class="text-3xl font-black tracking-tight" id="auth-title">Welcome Back</h2>
+                <p class="text-slate-400 text-sm mt-2 font-medium">Grab your token and fuel your brain</p>
             </div>
-          ))}
+            <div class="space-y-4">
+                <input type="text" placeholder="College ID" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:ring-2 focus:ring-orange-500 outline-none">
+                <input type="password" placeholder="Password" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:ring-2 focus:ring-orange-500 outline-none">
+                <button onclick="switchView('home')" class="w-full bg-[#FF5C00] text-white font-black py-4 rounded-2xl shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-colors mt-4">Sign In Now</button>
+                <button class="w-full bg-white border border-slate-100 text-slate-700 font-bold py-3 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 shadow-sm">
+                    <i data-lucide="smartphone" size="18" class="text-blue-500"></i>
+                    Sign in with Campus ID
+                </button>
+            </div>
         </div>
-        
-        <div className="mt-12 flex items-center justify-center gap-3">
-           <motion.div 
-             animate={{ opacity: [1, 0.5, 1] }} 
-             transition={{ duration: 1.5, repeat: Infinity }}
-             className="w-2 h-2 rounded-full bg-orange-600"
-           />
-           <span className="text-xs font-bold dark:text-white">
-             {step === 0 && "Wait for kitchen confirmation..."}
-             {step === 1 && "Chef is preparing your meal..."}
-             {step === 2 && "Order is ready at the counter!"}
-             {step === 3 && "Feast enjoyed! Thank you."}
-           </span>
+    </section>
+
+    <!-- Home View -->
+    <section id="view-home" class="view pt-28 pb-32 px-6">
+        <div class="relative bg-[#FF5C00] rounded-[3.5rem] p-10 lg:p-20 overflow-hidden min-h-[450px] flex items-center shadow-2xl shadow-orange-600/30 mb-12">
+            <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200')] bg-cover bg-center mix-blend-soft-light opacity-30"></div>
+            <div class="relative z-10 max-w-2xl">
+                <h1 class="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-10">The KSIT <br><span class="text-orange-200">Feast.</span></h1>
+                <button onclick="switchView('menu')" class="bg-white text-orange-600 px-10 py-5 rounded-[2rem] font-black text-xl shadow-2xl active:scale-95 transition-transform">Order Now</button>
+            </div>
         </div>
-      </div>
 
-      <motion.button 
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setView('home')}
-        className="bg-[#111827] dark:bg-white text-white dark:text-[#111827] px-16 py-6 rounded-[2rem] font-black text-xl shadow-2xl"
-      >
-        Order More
-      </motion.button>
-    </motion.div>
-  );
-}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
+                <i data-lucide="clock" class="text-green-500 mb-3"></i>
+                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Avg Waiting</p>
+                <h4 class="text-3xl font-black tracking-tighter">8m</h4>
+            </div>
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
+                <i data-lucide="user" class="text-orange-500 mb-3"></i>
+                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Active Now</p>
+                <h4 class="text-3xl font-black tracking-tighter">42</h4>
+            </div>
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
+                <i data-lucide="zap" class="text-blue-500 mb-3"></i>
+                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Service</p>
+                <h4 class="text-3xl font-black tracking-tighter">Fast</h4>
+            </div>
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
+                <i data-lucide="award" class="text-purple-500 mb-3"></i>
+                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Quality</p>
+                <h4 class="text-3xl font-black tracking-tighter">100%</h4>
+            </div>
+        </div>
+    </section>
 
-const styleTag = document.createElement('style');
-styleTag.innerHTML = `
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  body { margin: 0; padding: 0; }
-  * { box-sizing: border-box; }
-`;
-document.head.appendChild(styleTag);
+    <!-- Menu View -->
+    <section id="view-menu" class="view pt-28 pb-40 px-6">
+        <h2 class="text-5xl font-black mb-8 tracking-tighter">Campus <span class="text-orange-600">Menu</span></h2>
+        <div class="relative mb-10">
+            <i data-lucide="search" class="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input id="menu-search" type="text" placeholder="What's for lunch?" class="w-full bg-white border border-slate-100 rounded-[2.5rem] py-6 pl-16 pr-8 focus:ring-4 focus:ring-orange-500/10 outline-none text-lg font-bold shadow-sm matte-card">
+        </div>
+
+        <div id="category-chips" class="flex gap-3 overflow-x-auto mb-12 no-scrollbar">
+            <!-- Populated by JS -->
+        </div>
+
+        <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- Populated by JS -->
+        </div>
+    </section>
+
+    <!-- Checkout View -->
+    <section id="view-checkout" class="view pt-28 pb-32 px-6 max-w-2xl mx-auto">
+        <div class="flex items-center justify-between mb-12">
+            <h2 class="text-5xl font-black tracking-tighter">The <span class="text-[#FF5C00]">Bill</span></h2>
+            <button onclick="switchView('menu')" class="w-14 h-14 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm matte-card"><i data-lucide="x"></i></button>
+        </div>
+
+        <div id="cart-items-list" class="space-y-4 mb-12">
+            <!-- Populated by JS -->
+        </div>
+
+        <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 mb-8 shadow-sm matte-card">
+            <div class="flex items-center gap-3 mb-4">
+                <i data-lucide="ticket" class="text-orange-600"></i>
+                <span class="font-black text-sm tracking-tight">Student Coupons</span>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" placeholder="Enter Code (e.g. KSIT50)" class="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold outline-none">
+                <button class="bg-slate-900 text-white px-6 rounded-2xl font-black text-xs uppercase active:scale-95">Apply</button>
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-xl matte-card">
+            <div class="space-y-3 mb-8">
+                <div class="flex justify-between text-slate-500 text-sm font-bold"><span>Subtotal</span><span id="subtotal">₹0</span></div>
+                <div class="flex justify-between text-slate-500 text-sm font-bold"><span>GST (5%)</span><span id="gst">₹0</span></div>
+                <div class="flex justify-between text-slate-500 text-sm font-bold"><span>Campus Fee</span><span>₹5</span></div>
+                <hr class="my-4">
+                <div class="flex justify-between items-center">
+                    <span class="font-black text-xl">Total</span>
+                    <span class="text-4xl font-black text-[#FF5C00] tracking-tighter" id="grand-total">₹0</span>
+                </div>
+            </div>
+            <button onclick="switchView('success')" class="w-full bg-[#FF5C00] text-white py-6 rounded-[2rem] font-black text-2xl shadow-2xl hover:bg-orange-700 active:scale-95 transition-all">Pay & Confirm</button>
+        </div>
+    </section>
+
+    <!-- Success View -->
+    <section id="view-success" class="view fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-32 h-32 bg-[#22C55E] rounded-full flex items-center justify-center text-white mb-10 shadow-2xl" id="success-icon">
+            <i data-lucide="check-circle" size="60"></i>
+        </div>
+        <h2 class="text-5xl font-black mb-4 tracking-tighter">Order Placed!</h2>
+        <p class="text-slate-400 font-bold mb-12 text-lg">Your Token ID: <span class="text-[#FF5C00]">#KS-1024</span></p>
+
+        <div class="w-full max-w-lg bg-slate-50 p-10 rounded-[3rem] border border-slate-100 shadow-sm relative mb-12 matte-card text-left">
+            <p class="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">Live Tracking</p>
+            <div class="relative flex justify-between">
+                <div class="absolute top-6 left-0 w-full h-1 bg-slate-200 z-0"></div>
+                <div id="progress-line" class="absolute top-6 left-0 h-1 bg-orange-500 z-0 w-0"></div>
+                
+                <!-- Steps -->
+                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="0">
+                    <div class="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center border-4 border-white"><i data-lucide="check-circle" size="20"></i></div>
+                    <span class="text-[9px] font-black uppercase text-orange-600">Confirmed</span>
+                </div>
+                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="1">
+                    <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center border-4 border-white"><i data-lucide="chef-hat" size="20"></i></div>
+                    <span class="text-[9px] font-black uppercase text-slate-400">Cooking</span>
+                </div>
+                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="2">
+                    <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center border-4 border-white"><i data-lucide="package" size="20"></i></div>
+                    <span class="text-[9px] font-black uppercase text-slate-400">Ready</span>
+                </div>
+                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="3">
+                    <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center border-4 border-white"><i data-lucide="store" size="20"></i></div>
+                    <span class="text-[9px] font-black uppercase text-slate-400">Delivered</span>
+                </div>
+            </div>
+            <p id="tracking-status" class="mt-12 text-center text-xs font-bold">Wait for kitchen confirmation...</p>
+        </div>
+        <button onclick="switchView('home'); resetOrder();" class="bg-[#111827] text-white px-16 py-6 rounded-[2rem] font-black text-xl shadow-2xl">Order More</button>
+    </section>
+
+    <!-- Floating Cart -->
+    <div id="floating-cart" class="fixed bottom-10 left-1/2 -translate-x-1/2 w-[92%] max-w-lg z-[180] hidden">
+        <div class="bg-[#111827] p-5 rounded-[3rem] shadow-2xl flex items-center justify-between border border-white/5">
+            <div class="flex items-center gap-5 pl-2">
+                <div class="w-14 h-14 bg-[#FF5C00] rounded-[1.5rem] flex items-center justify-center text-white relative shadow-lg">
+                    <i data-lucide="shopping-bag"></i>
+                    <span id="cart-count" class="absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-[3px] border-[#111827]">0</span>
+                </div>
+                <div>
+                    <p id="cart-total" class="text-white text-2xl font-black tracking-tighter">₹0</p>
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Plate Ready</p>
+                </div>
+            </div>
+            <button onclick="switchView('checkout')" class="bg-white text-[#111827] px-8 py-4 rounded-[1.5rem] font-black text-sm flex items-center gap-2 shadow-lg active:scale-95 transition-transform">
+                View Bill <i data-lucide="arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const menuItems = [
+            { id: 1, name: "Royal Ghee Masala Dosa", price: 65, category: "South Indian", rating: 4.8, cal: 320, time: "10m", img: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=400" },
+            { id: 2, name: "Monster Paneer Burger", price: 95, category: "Fast Food", rating: 4.5, cal: 540, time: "12m", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400" },
+            { id: 3, name: "Schezwan Fried Rice", price: 80, category: "Chinese", rating: 4.2, cal: 410, time: "15m", img: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=400" },
+            { id: 4, name: "Chole Bhature", price: 90, category: "North Indian", rating: 4.8, cal: 720, time: "15m", img: "https://images.unsplash.com/photo-1626132646529-500dd19c4834?auto=format&fit=crop&w=400" },
+            { id: 5, name: "Sizzling Brownie", price: 120, category: "Desserts", rating: 4.9, cal: 650, time: "8m", img: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=400" },
+            { id: 6, name: "Classic Filter Coffee", price: 20, category: "Beverages", rating: 4.9, cal: 80, time: "5m", img: "https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&w=400" }
+        ];
+
+        const categories = ["All", "South Indian", "North Indian", "Chinese", "Fast Food", "Beverages", "Desserts"];
+        let currentCategory = "All";
+        let cart = [];
+        let currentView = 'splash';
+
+        // --- STATE & UI HANDLERS ---
+        function switchView(viewId) {
+            const views = document.querySelectorAll('.view');
+            views.forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${viewId}`).classList.add('active');
+            currentView = viewId;
+
+            // Handle Navbar visibility
+            const navbar = document.getElementById('navbar');
+            if (viewId === 'home' || viewId === 'menu') {
+                navbar.classList.remove('hidden');
+            } else {
+                navbar.classList.add('hidden');
+            }
+
+            // Handle Floating Cart
+            const fCart = document.getElementById('floating-cart');
+            if (cart.length > 0 && (viewId === 'home' || viewId === 'menu')) {
+                fCart.classList.remove('hidden');
+            } else {
+                fCart.classList.add('hidden');
+            }
+
+            // Initialize Progress Bar if Success
+            if (viewId === 'success') {
+                startOrderTracking();
+            }
+
+            gsap.fromTo(`#view-${viewId}`, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5 });
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            const icon = document.getElementById('theme-icon');
+            icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
+
+        function updateCart() {
+            const count = cart.reduce((acc, item) => acc + item.qty, 0);
+            const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            
+            document.getElementById('cart-count').innerText = count;
+            document.getElementById('cart-total').innerText = `₹${total}`;
+            
+            // Toggle floating cart
+            const fCart = document.getElementById('floating-cart');
+            if (count > 0 && (currentView === 'home' || currentView === 'menu')) {
+                fCart.classList.remove('hidden');
+            } else {
+                fCart.classList.add('hidden');
+            }
+
+            // Update Checkout Page
+            renderCartItems();
+        }
+
+        function addToCart(itemId) {
+            const item = menuItems.find(i => i.id === itemId);
+            const existing = cart.find(i => i.id === itemId);
+            if (existing) {
+                existing.qty++;
+            } else {
+                cart.push({ ...item, qty: 1 });
+            }
+            updateCart();
+        }
+
+        function changeQty(itemId, delta) {
+            const item = cart.find(i => i.id === itemId);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) {
+                    cart = cart.filter(i => i.id !== itemId);
+                }
+            }
+            updateCart();
+        }
+
+        function renderMenu() {
+            const grid = document.getElementById('menu-grid');
+            grid.innerHTML = '';
+            
+            const search = document.getElementById('menu-search').value.toLowerCase();
+            
+            menuItems.forEach(item => {
+                if ((currentCategory === 'All' || item.category === currentCategory) && 
+                    item.name.toLowerCase().includes(search)) {
+                    const card = `
+                        <div class="bg-white rounded-[3rem] p-5 border border-slate-100 matte-card group hover:shadow-2xl transition-all">
+                            <div class="relative h-56 overflow-hidden rounded-[2.5rem] mb-6">
+                                <img src="${item.img}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                                <div class="absolute top-5 left-5 bg-[#FF5C00] px-4 py-1.5 rounded-full text-white text-[9px] font-black uppercase tracking-widest">${item.category}</div>
+                            </div>
+                            <div class="px-2">
+                                <h4 class="font-black text-2xl mb-2 tracking-tight">${item.name}</h4>
+                                <div class="flex items-center gap-4 text-slate-400 text-[10px] font-black mb-6 uppercase tracking-widest">
+                                    <span>${item.time}</span> • <span>${item.cal} cal</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-3xl font-black">₹${item.price}</span>
+                                    <button onclick="addToCart(${item.id})" class="bg-[#FF5C00] text-white w-14 h-14 rounded-3xl flex items-center justify-center shadow-xl active:scale-90 transition-transform">
+                                        <i data-lucide="plus" size="28"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    grid.innerHTML += card;
+                }
+            });
+            lucide.createIcons();
+        }
+
+        function renderCartItems() {
+            const list = document.getElementById('cart-items-list');
+            list.innerHTML = '';
+            let sub = 0;
+
+            cart.forEach(item => {
+                sub += item.price * item.qty;
+                const row = `
+                    <div class="bg-white p-5 rounded-[2.5rem] flex items-center gap-6 border border-slate-50 shadow-sm matte-card">
+                        <img src="${item.img}" class="w-20 h-20 object-cover rounded-3xl">
+                        <div class="flex-1">
+                            <h4 class="font-black text-lg tracking-tight">${item.name}</h4>
+                            <p class="text-[#FF5C00] font-black">₹${item.price * item.qty}</p>
+                        </div>
+                        <div class="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl">
+                            <button onclick="changeQty(${item.id}, -1)" class="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400"><i data-lucide="minus" size="16"></i></button>
+                            <span class="font-black text-base w-4 text-center">${item.qty}</span>
+                            <button onclick="changeQty(${item.id}, 1)" class="w-8 h-8 rounded-xl flex items-center justify-center text-orange-600"><i data-lucide="plus" size="16"></i></button>
+                        </div>
+                    </div>
+                `;
+                list.innerHTML += row;
+            });
+
+            const gst = Math.round(sub * 0.05);
+            document.getElementById('subtotal').innerText = `₹${sub}`;
+            document.getElementById('gst').innerText = `₹${gst}`;
+            document.getElementById('grand-total').innerText = `₹${sub + gst + 5}`;
+            lucide.createIcons();
+        }
+
+        function startOrderTracking() {
+            let currentStep = 0;
+            const progressLine = document.getElementById('progress-line');
+            const statusText = document.getElementById('tracking-status');
+            const steps = document.querySelectorAll('.step');
+            const messages = [
+                "Wait for kitchen confirmation...",
+                "Chef is preparing your meal...",
+                "Order is ready at the counter!",
+                "Feast enjoyed! Thank you."
+            ];
+
+            function updateProgress() {
+                progressLine.style.width = `${(currentStep / 3) * 100}%`;
+                statusText.innerText = messages[currentStep];
+                
+                steps.forEach((s, i) => {
+                    const iconBox = s.querySelector('div');
+                    const label = s.querySelector('span');
+                    if (i <= currentStep) {
+                        iconBox.classList.remove('bg-slate-200', 'text-slate-400');
+                        iconBox.classList.add('bg-orange-500', 'text-white');
+                        label.classList.remove('text-slate-400');
+                        label.classList.add('text-orange-600');
+                    }
+                });
+
+                if (currentStep < 3) {
+                    currentStep++;
+                    setTimeout(updateProgress, 5000);
+                }
+            }
+            updateProgress();
+        }
+
+        function resetOrder() {
+            cart = [];
+            updateCart();
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            lucide.createIcons();
+
+            // Background Animation
+            const bgContainer = document.getElementById('background-icons');
+            const bgIcons = ['utensils', 'coffee', 'leaf', 'star'];
+            for (let i = 0; i < 20; i++) {
+                const el = document.createElement('div');
+                el.className = 'absolute';
+                el.innerHTML = `<i data-lucide="${bgIcons[i % 4]}" class="opacity-10"></i>`;
+                el.style.left = `${Math.random() * 100}%`;
+                el.style.top = `${Math.random() * 100}%`;
+                bgContainer.appendChild(el);
+            }
+            lucide.createIcons();
+
+            // Splash Sequence
+            gsap.to("#splash-logo", { scale: 1, duration: 1, ease: "back.out(1.7)" });
+            gsap.to("#splash-title", { opacity: 1, y: -10, duration: 1, delay: 0.5 });
+            gsap.to("#splash-sub", { opacity: 1, y: -5, duration: 1, delay: 0.8 });
+
+            setTimeout(() => {
+                document.getElementById('splash').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splash').style.display = 'none';
+                    switchView('auth');
+                }, 700);
+            }, 3000);
+
+            // Category Chips
+            const chipContainer = document.getElementById('category-chips');
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = `flex-shrink-0 px-8 py-3.5 rounded-full font-black text-[11px] uppercase tracking-[0.2em] shadow-sm transition-all border border-slate-100 matte-card ${cat === 'All' ? 'bg-[#FF5C00] text-white' : 'bg-white text-slate-400'}`;
+                btn.innerText = cat;
+                btn.onclick = () => {
+                    currentCategory = cat;
+                    document.querySelectorAll('#category-chips button').forEach(b => {
+                        b.classList.remove('bg-[#FF5C00]', 'text-white');
+                        b.classList.add('bg-white', 'text-slate-400');
+                    });
+                    btn.classList.add('bg-[#FF5C00]', 'text-white');
+                    renderMenu();
+                };
+                chipContainer.appendChild(btn);
+            });
+
+            // Search listener
+            document.getElementById('menu-search').oninput = renderMenu;
+            document.getElementById('theme-toggle').onclick = toggleDarkMode;
+
+            renderMenu();
+        };
+    </script>
+</body>
+</html>
