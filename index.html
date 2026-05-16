@@ -70,6 +70,33 @@
         }
         .status-hidden { transform: translate(-50%, 150%) scale(0.9); opacity: 0; pointer-events: none; }
         .status-visible { transform: translate(-50%, 0) scale(1); opacity: 1; pointer-events: auto; }
+
+        /* Progress Step Styling */
+        .progress-step { position: relative; }
+        .progress-step::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 40px;
+            bottom: -20px;
+            width: 2px;
+            background: #e2e8f0;
+            z-index: 0;
+        }
+        .progress-step:last-child::before { display: none; }
+        .step-active .step-icon { background: var(--brand-primary); color: white; border-color: var(--brand-primary); box-shadow: 0 0 15px rgba(249, 115, 22, 0.4); }
+        .step-completed .step-icon { background: #22c55e; color: white; border-color: #22c55e; }
+
+        /* Segmented Toggle Styling */
+        .diet-btn.active {
+            background: white;
+            color: var(--brand-dark);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .diet-btn:not(.active) {
+            color: #9a3412;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body class="text-[#431407] food-pattern">
@@ -81,16 +108,29 @@
                 <div class="w-12 h-12 bg-orange-600 rounded-2xl rotate-3 flex items-center justify-center text-white shadow-xl shadow-orange-200">
                     <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></svg>
                 </div>
-                <div>
+                <div class="hidden lg:block">
                     <h1 class="text-2xl font-black tracking-tight leading-none text-orange-950">CAMPUS<span class="text-orange-600">CRAVINGS</span></h1>
                     <p class="text-[10px] uppercase tracking-[0.3em] font-bold text-orange-900/40">The Global Student Kitchen</p>
                 </div>
             </div>
 
-            <button onclick="togglePlate()" class="relative flex items-center gap-4 bg-[#431407] text-white pl-6 pr-2 py-2 rounded-full hover:bg-orange-600 transition-all active:scale-95 group">
-                <span class="text-sm font-bold tracking-wide">My Order</span>
-                <div id="badge-count" class="bg-orange-500 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 border-[#431407] group-hover:border-orange-600 hidden">0</div>
-            </button>
+            <div class="flex items-center gap-4 sm:gap-8">
+                <!-- Premium Dietary Segmented Control -->
+                <div class="flex bg-orange-100/50 p-1 rounded-full border border-orange-100">
+                    <button onclick="updateDiet('all')" id="diet-all" class="diet-btn active px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all">All</button>
+                    <button onclick="updateDiet('veg')" id="diet-veg" class="diet-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1">
+                        <div class="w-2 h-2 rounded-full bg-green-500"></div> Veg
+                    </button>
+                    <button onclick="updateDiet('non-veg')" id="diet-non" class="diet-btn px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1">
+                        <div class="w-2 h-2 rounded-full bg-red-500"></div> Non-Veg
+                    </button>
+                </div>
+
+                <button onclick="togglePlate()" class="relative flex items-center gap-4 bg-[#431407] text-white pl-6 pr-2 py-2 rounded-full hover:bg-orange-600 transition-all active:scale-95 group">
+                    <span class="hidden sm:inline text-sm font-bold tracking-wide">My Order</span>
+                    <div id="badge-count" class="bg-orange-500 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 border-[#431407] group-hover:border-orange-600 hidden">0</div>
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -98,7 +138,7 @@
     <header class="pt-36 pb-12 px-4 text-center max-w-4xl mx-auto">
         <span class="inline-block px-4 py-1.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-6 animate-slide-up">Open for Lunch & Dinner</span>
         <h2 class="text-5xl md:text-7xl font-black mb-6 leading-[0.9] animate-slide-up" style="animation-delay: 0.1s">Fuel your <span class="text-orange-600 italic serif">ambition</span>, one bite at a time.</h2>
-        <p class="text-orange-900/60 text-lg md:text-xl font-medium animate-slide-up" style="animation-delay: 0.2s">Freshly cooked meals, personalized coupons, and seamless payments for the modern campus life.</p>
+        <p class="text-orange-900/60 text-lg md:text-xl font-medium animate-slide-up" style="animation-delay: 0.2s">Taste the authenticity of premium ingredients. Fresh, fast, and student-focused.</p>
     </header>
 
     <!-- Filter Tabs -->
@@ -138,7 +178,7 @@
         </button>
     </div>
 
-    <!-- Plate Overlay -->
+    <!-- Sidebar Overlay -->
     <div id="plate-overlay" onclick="togglePlate()" class="fixed inset-0 bg-orange-950/40 backdrop-blur-sm z-[60] hidden transition-opacity"></div>
     
     <!-- Plate Sidebar -->
@@ -157,9 +197,8 @@
             <!-- Items injected by JS -->
         </div>
 
-        <!-- Extra Details Section -->
+        <!-- Details Section -->
         <div class="p-8 bg-white border-t border-orange-100 space-y-6">
-            <!-- Coupon Code -->
             <div class="space-y-3">
                 <p class="text-[10px] font-black uppercase tracking-widest text-orange-800/40">Have a coupon?</p>
                 <div class="flex gap-2">
@@ -169,7 +208,6 @@
                 <p id="coupon-message" class="text-[11px] font-bold text-green-600 hidden"></p>
             </div>
 
-            <!-- Payment Method -->
             <div class="space-y-3">
                 <p class="text-[10px] font-black uppercase tracking-widest text-orange-800/40">Payment Method</p>
                 <div class="flex flex-wrap gap-2">
@@ -180,7 +218,7 @@
             </div>
         </div>
 
-        <!-- Grand Total & Finalize -->
+        <!-- Grand Total -->
         <div class="p-8 bg-orange-50 border-t border-orange-100 space-y-4">
             <div class="space-y-2">
                 <div class="flex justify-between text-sm text-orange-900/60 font-bold uppercase tracking-wider">
@@ -205,70 +243,103 @@
         </div>
     </aside>
 
-    <!-- Success Modal -->
-    <div id="success-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-orange-950/80 backdrop-blur-lg">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl animate-slide-up border-8 border-orange-50">
-            <div class="w-20 h-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
+    <!-- Progress Modal -->
+    <div id="progress-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-orange-950/90 backdrop-blur-xl">
+        <div class="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl animate-slide-up border-8 border-orange-50 overflow-hidden relative">
+            <div class="absolute top-0 left-0 w-full h-2 bg-orange-100">
+                <div id="order-loading-bar" class="h-full bg-orange-600 transition-all duration-1000" style="width: 0%"></div>
             </div>
-            <h4 class="text-3xl font-black mb-2 text-orange-950">Feast Prep Started!</h4>
-            <p id="success-pay-method" class="text-[10px] font-black uppercase tracking-widest text-orange-900/30 mb-8">Payment Via UPI</p>
+
+            <div class="text-center mb-10">
+                <h4 class="text-3xl font-black text-orange-950">Live Tracking</h4>
+                <p id="token-display-large" class="text-orange-600 font-black text-xl mt-2 tracking-tighter">Token #000</p>
+            </div>
+
+            <div class="space-y-12 max-w-xs mx-auto mb-10">
+                <div id="step-1" class="progress-step step-active flex items-start gap-6">
+                    <div class="step-icon w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-black z-10 bg-white transition-all">1</div>
+                    <div>
+                        <p class="font-black text-orange-950 uppercase text-xs tracking-widest">Order Accepted</p>
+                        <p class="text-slate-400 text-[11px] font-medium">The kitchen has received your ticket.</p>
+                    </div>
+                </div>
+
+                <div id="step-2" class="progress-step flex items-start gap-6">
+                    <div class="step-icon w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-black z-10 bg-white transition-all">2</div>
+                    <div>
+                        <p class="font-black text-orange-950 uppercase text-xs tracking-widest">Being Cooked</p>
+                        <p class="text-slate-400 text-[11px] font-medium">Chef is preparing your fresh meal.</p>
+                    </div>
+                </div>
+
+                <div id="step-3" class="progress-step flex items-start gap-6">
+                    <div class="step-icon w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-black z-10 bg-white transition-all">3</div>
+                    <div>
+                        <p class="font-black text-orange-950 uppercase text-xs tracking-widest">Ready to Collect</p>
+                        <p class="text-slate-400 text-[11px] font-medium">Head to counter #4 for pickup!</p>
+                    </div>
+                </div>
+            </div>
             
-            <div class="bg-orange-600 rounded-3xl p-8 mb-8 text-white">
-                <span class="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Pick-up Token</span>
-                <div id="token-id" class="text-6xl font-black mt-2 tracking-tighter">#000</div>
+            <div id="ready-celebration" class="hidden text-center animate-bounce mb-6">
+                <span class="bg-green-100 text-green-700 px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest">It's Ready! Enjoy! 🍲</span>
             </div>
-            <button onclick="closeModal()" class="w-full bg-[#431407] text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl">Back to Menu</button>
+
+            <button id="close-progress-btn" onclick="closeProgress()" class="w-full bg-slate-100 text-slate-400 py-5 rounded-2xl font-black uppercase tracking-widest transition-all cursor-not-allowed" disabled>
+                Wait for Ready
+            </button>
         </div>
     </div>
 
     <script>
         const menuItems = [
             // South Indian
-            { id: 1, name: "Ghee Roast Dosa", price: 110, cuisine: "South Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=600&auto=format&fit=crop", desc: "Classic golden dosa roasted in pure ghee, served with 3 chutneys." },
+            { id: 1, name: "Ghee Roast Dosa", price: 110, cuisine: "South Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=600&auto=format&fit=crop", desc: "Crispy ghee-laden crepe served with spicy sambhar and coconut chutney." },
             { id: 2, name: "Steamed Idli Sambhar", price: 65, cuisine: "South Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?q=80&w=600&auto=format&fit=crop", desc: "Fluffy steamed rice cakes served with our signature vegetable stew." },
             { id: 3, name: "Medu Vada Platter", price: 80, cuisine: "South Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1626132646529-500637532537?q=80&w=600&auto=format&fit=crop", desc: "Savoury lentil donuts, crunchy outside and cloud-like inside." },
-            { id: 4, name: "Onion Rava Masala", price: 135, cuisine: "South Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1630409351241-e90e7f5e434d?q=80&w=600&auto=format&fit=crop", desc: "Crispy semolina dosa with sautéed onions and spiced potato filling." },
-            { id: 5, name: "Curd Rice Bowl", price: 75, cuisine: "South Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1645177623570-ad485afb0701?q=80&w=600&auto=format&fit=crop", desc: "Tempered curd rice with mustard seeds, ginger, and curry leaves." },
+            { id: 4, name: "Chicken 65 Dosa", price: 160, cuisine: "South Indian", type: "non-veg", special: true, image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?q=80&w=600&auto=format&fit=crop", desc: "Crispy dosa stuffed with spicy hyderabadi style chicken bites." },
             
             // North Indian
             { id: 6, name: "Butter Chicken Meal", price: 260, cuisine: "North Indian", type: "non-veg", special: true, image: "https://images.unsplash.com/photo-1603894584134-f1c2baee4ef9?q=80&w=600&auto=format&fit=crop", desc: "Classic char-grilled chicken in creamy tomato gravy with Garlic Naan." },
-            { id: 7, name: "Paneer Tikka Masala", price: 210, cuisine: "North Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?q=80&w=600&auto=format&fit=crop", desc: "Smoky paneer cubes in a robust onion-tomato gravy." },
+            { id: 7, name: "Shahi Paneer", price: 210, cuisine: "North Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?q=80&w=600&auto=format&fit=crop", desc: "Smoky paneer cubes in a robust onion-tomato gravy." },
             { id: 25, name: "Malai Kofta", price: 180, cuisine: "North Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1645177623570-ad485afb0701?q=80&w=600&auto=format&fit=crop", desc: "Soft paneer and vegetable balls in a rich, white creamy cashew gravy." },
             { id: 9, name: "Chole Bhature", price: 120, cuisine: "North Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1596797038530-2c39fa81b487?q=80&w=600&auto=format&fit=crop", desc: "Spiced chickpeas served with puffed leavened bread and pickle." },
-            { id: 10, name: "Saffron Veg Biryani", price: 185, cuisine: "North Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1563379091339-0c9240f5d45c?q=80&w=600&auto=format&fit=crop", desc: "Fragrant basmati rice layered with garden fresh vegetables and spices." },
+            { id: 10, name: "Mutton Rogan Josh", price: 295, cuisine: "North Indian", type: "non-veg", special: true, image: "https://images.unsplash.com/photo-1545247181-516773cae754?q=80&w=600&auto=format&fit=crop", desc: "Traditional Kashmiri delicacy with tender meat in a red gravy." },
 
-            // Chinese (Extended)
+            // Chinese
             { id: 11, name: "Hakka Veg Noodles", price: 145, cuisine: "Chinese", type: "veg", special: false, image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?q=80&w=600&auto=format&fit=crop", desc: "Wok-tossed thin noodles with crunchy seasonal greens." },
-            { id: 12, name: "Veg Dim Sums", price: 160, cuisine: "Chinese", type: "veg", special: true, image: "https://images.unsplash.com/photo-1563245332-69254693a131?q=80&w=600&auto=format&fit=crop", desc: "Hand-crafted steamed dumplings with ginger-soy dip." },
-            { id: 13, name: "Crispy Spring Rolls", price: 115, cuisine: "Chinese", type: "veg", special: false, image: "https://images.unsplash.com/photo-1606331107436-1e6628602ee5?q=80&w=600&auto=format&fit=crop", desc: "Golden pastry cylinders packed with seasoned glass noodles." },
             { id: 26, name: "Chili Chicken Dry", price: 195, cuisine: "Chinese", type: "non-veg", special: true, image: "https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=600&auto=format&fit=crop", desc: "Battered chicken tossed with capsicum, onion, and dark soy." },
-            { id: 27, name: "Manchurian Gravy", price: 155, cuisine: "Chinese", type: "veg", special: false, image: "https://images.unsplash.com/photo-1637361890611-69854d19360e?q=80&w=600&auto=format&fit=crop", desc: "Vegetable fritters in a tangy ginger and garlic sauce." },
             { id: 28, name: "Egg Fried Rice", price: 130, cuisine: "Chinese", type: "non-veg", special: false, image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?q=80&w=600&auto=format&fit=crop", desc: "Stir-fried rice with scrambled eggs and garden vegetables." },
             { id: 29, name: "Schezwan Noodles", price: 150, cuisine: "Chinese", type: "veg", special: true, image: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?q=80&w=600&auto=format&fit=crop", desc: "Fiery red noodles infused with bold Schezwan spices." },
 
             // Italian
             { id: 14, name: "Margherita Pizza", price: 290, cuisine: "Italian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=600&auto=format&fit=crop", desc: "Classic hand-tossed crust with san marzano sauce and fresh basil." },
-            { id: 15, name: "Creamy Alfredo", price: 245, cuisine: "Italian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1473093226795-af9932fe5855?q=80&w=600&auto=format&fit=crop", desc: "Penne pasta in a rich parmesan cream sauce with hints of garlic." },
-            { id: 16, name: "Garlic Bread Sticks", price: 95, cuisine: "Italian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1573140401552-3fab0b24306f?q=80&w=600&auto=format&fit=crop", desc: "Butter-toasted baguettes with fresh herbs and molten cheese." },
+            { id: 15, name: "Chicken Alfredo", price: 275, cuisine: "Italian", type: "non-veg", special: false, image: "https://images.unsplash.com/photo-1473093226795-af9932fe5855?q=80&w=600&auto=format&fit=crop", desc: "Penne pasta with grilled chicken in rich parmesan cream sauce." },
 
             // Desserts
             { id: 17, name: "NYC Cheesecake", price: 195, cuisine: "Desserts", type: "veg", special: true, image: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?q=80&w=600&auto=format&fit=crop", desc: "Velvety vanilla cheesecake on a buttery biscuit base." },
-            { id: 18, name: "Double Choco Lava", price: 155, cuisine: "Desserts", type: "veg", special: false, image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=600&auto=format&fit=crop", desc: "Gooey chocolate center that erupts with every bite." },
-            { id: 19, name: "Tiramisu Classic", price: 220, cuisine: "Desserts", type: "veg", special: true, image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?q=80&w=600&auto=format&fit=crop", desc: "Coffee-soaked ladyfingers layered with mascarpone cream." }
+            { id: 18, name: "Double Choco Lava", price: 155, cuisine: "Desserts", type: "veg", special: false, image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=600&auto=format&fit=crop", desc: "Gooey chocolate center that erupts with every bite." }
         ];
 
         let plate = [];
         let discountPercent = 0;
         let selectedPayment = 'upi';
+        let currentCuisine = 'all';
+        let currentDiet = 'all';
 
-        const coupons = {
-            "FRESHER20": 20,
-            "CRAVE10": 10,
-            "CAMPUS50": 50
-        };
+        const coupons = { "FRESHER20": 20, "CRAVE10": 10, "CAMPUS50": 50 };
+
+        function updateDiet(type) {
+            currentDiet = type;
+            document.querySelectorAll('.diet-btn').forEach(btn => btn.classList.remove('active'));
+            if(type === 'all') document.getElementById('diet-all').classList.add('active');
+            if(type === 'veg') document.getElementById('diet-veg').classList.add('active');
+            if(type === 'non-veg') document.getElementById('diet-non').classList.add('active');
+            renderMenu();
+        }
 
         function filterCuisine(cuisine) {
+            currentCuisine = cuisine;
             const tabs = document.querySelectorAll('.cuisine-tab');
             tabs.forEach(tab => {
                 if (tab.innerText.toLowerCase().includes(cuisine.toLowerCase()) || (cuisine === 'all' && tab.innerText.includes('All'))) {
@@ -277,7 +348,7 @@
                     tab.classList.remove('active');
                 }
             });
-            renderMenu(cuisine);
+            renderMenu();
         }
 
         function cancelDishIfNoImage(imgElement) {
@@ -288,13 +359,17 @@
         function checkEmptyMenu() {
             const grid = document.getElementById('menu-grid');
             if (grid.children.length === 0) {
-                grid.innerHTML = '<div class="col-span-full text-center py-20 text-orange-900/40 font-bold uppercase tracking-widest">No available dishes in this section</div>';
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-orange-900/40 font-bold uppercase tracking-widest">No matching dishes available</div>';
             }
         }
 
-        function renderMenu(cuisine = 'all') {
+        function renderMenu() {
             const grid = document.getElementById('menu-grid');
-            const items = cuisine === 'all' ? menuItems : menuItems.filter(i => i.cuisine === cuisine);
+            let items = currentCuisine === 'all' ? menuItems : menuItems.filter(i => i.cuisine === currentCuisine);
+            
+            if (currentDiet !== 'all') {
+                items = items.filter(i => i.type === currentDiet);
+            }
             
             grid.innerHTML = items.map(item => `
                 <div class="animate-slide-up group flex flex-col dish-card" id="dish-${item.id}">
@@ -317,6 +392,7 @@
                     <button onclick="addToPlate(${item.id})" class="w-full bg-white text-orange-950 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] border-2 border-orange-50 hover:bg-[#431407] hover:text-white transition-all active:scale-95">Add to Plate</button>
                 </div>
             `).join('');
+            checkEmptyMenu();
         }
 
         function addToPlate(itemId) {
@@ -338,10 +414,9 @@
         function applyCoupon() {
             const input = document.getElementById('coupon-input').value.toUpperCase();
             const message = document.getElementById('coupon-message');
-            
             if (coupons[input]) {
                 discountPercent = coupons[input];
-                message.innerText = `Coupon Applied! You saved ${discountPercent}%`;
+                message.innerText = `Coupon Applied! Saved ${discountPercent}%`;
                 message.classList.replace('text-red-600', 'text-green-600');
                 message.classList.remove('hidden');
             } else {
@@ -403,14 +478,12 @@
             }
 
             document.getElementById('subtotal-amount').innerHTML = `₹${sub.toFixed(2)}`;
-            
             if (discountAmount > 0) {
                 document.getElementById('discount-row').classList.remove('hidden');
                 document.getElementById('discount-amount').innerHTML = `-₹${discountAmount.toFixed(2)}`;
             } else {
                 document.getElementById('discount-row').classList.add('hidden');
             }
-
             document.getElementById('total-amount').innerHTML = `₹${finalTotal.toFixed(2)}`;
         }
 
@@ -421,17 +494,52 @@
 
         function placeOrder() {
             const token = Math.floor(100 + Math.random() * 899);
-            document.getElementById('token-id').innerText = `#${token}`;
-            
-            const methods = { upi: "UPI / Scan", wallet: "Campus Wallet", cash: "Cash at Counter" };
-            document.getElementById('success-pay-method').innerText = `Payment Mode: ${methods[selectedPayment]}`;
-            
-            document.getElementById('success-modal').classList.replace('hidden', 'flex');
+            document.getElementById('token-display-large').innerText = `Token #${token}`;
+            document.getElementById('progress-modal').classList.replace('hidden', 'flex');
             togglePlate();
+            simulateProgress();
         }
 
-        function closeModal() {
-            document.getElementById('success-modal').classList.replace('flex', 'hidden');
+        function simulateProgress() {
+            const bar = document.getElementById('order-loading-bar');
+            const step1 = document.getElementById('step-1');
+            const step2 = document.getElementById('step-2');
+            const step3 = document.getElementById('step-3');
+            const closeBtn = document.getElementById('close-progress-btn');
+            const celeb = document.getElementById('ready-celebration');
+
+            bar.style.width = "0%";
+            step1.className = "progress-step step-active flex items-start gap-6";
+            step2.className = "progress-step flex items-start gap-6";
+            step3.className = "progress-step flex items-start gap-6";
+            closeBtn.disabled = true;
+            closeBtn.className = "w-full bg-slate-100 text-slate-400 py-5 rounded-2xl font-black uppercase tracking-widest transition-all cursor-not-allowed";
+            celeb.classList.add('hidden');
+
+            setTimeout(() => {
+                bar.style.width = "33%";
+                step1.classList.replace('step-active', 'step-completed');
+                step2.classList.add('step-active');
+            }, 3000);
+
+            setTimeout(() => {
+                bar.style.width = "66%";
+                step2.classList.replace('step-active', 'step-completed');
+                step3.classList.add('step-active');
+            }, 7000);
+
+            setTimeout(() => {
+                bar.style.width = "100%";
+                step3.classList.replace('step-active', 'step-completed');
+                celeb.classList.remove('hidden');
+                closeBtn.disabled = false;
+                closeBtn.innerText = "Collect & Return";
+                closeBtn.className = "w-full bg-green-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-xl active:scale-95 cursor-pointer";
+            }, 11000);
+        }
+
+        function closeProgress() {
+            document.getElementById('progress-modal').classList.replace('flex', 'hidden');
             plate = [];
             discountPercent = 0;
             document.getElementById('coupon-input').value = '';
