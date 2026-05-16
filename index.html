@@ -3,488 +3,443 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KSIT FoodVerse | Campus Dining</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Campus Cravings | The Foodie Kitchen</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- GSAP for animations (Replacing Framer Motion) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; }
+        :root {
+            --brand-primary: #f97316;
+            --brand-dark: #431407;
+            --brand-cream: #fffaf5;
+        }
+
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            scroll-behavior: smooth; 
+            background-color: var(--brand-cream);
+        }
+
+        h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .view { display: none; opacity: 0; }
-        .view.active { display: block; opacity: 1; }
-        .matte-card { background: white; border: 1px solid #f1f5f9; }
-        .dark .matte-card { background: #161B22; border: 1px solid #1e293b; }
-        .ksit-orange { background-color: #FF5C00; }
-        .ksit-orange-text { color: #FF5C00; }
-        
-        /* Progress Bar Animation */
-        #progress-line { transition: width 0.5s ease-in-out; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fed7aa; border-radius: 20px; }
+
+        .food-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f97316' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .cuisine-tab.active {
+            background-color: var(--brand-dark);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .plate-sidebar {
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .plate-sidebar.hidden-right { 
+            transform: translateX(100%); 
+        }
+
+        .dish-card img {
+            transition: transform 0.8s cubic-bezier(0.2, 1, 0.3, 1);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform: translateZ(0);
+        }
+        .dish-card:hover img { transform: scale(1.1); }
+
+        .payment-chip.active {
+            border-color: var(--brand-primary);
+            background-color: #fff7ed;
+            color: var(--brand-primary);
+        }
+
+        #floating-status-bar {
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .status-hidden { transform: translate(-50%, 150%) scale(0.9); opacity: 0; pointer-events: none; }
+        .status-visible { transform: translate(-50%, 0) scale(1); opacity: 1; pointer-events: auto; }
     </style>
 </head>
-<body class="bg-[#FFFBF2] text-slate-900 select-none overflow-x-hidden transition-colors duration-500">
-
-    <!-- Background Icons (Animated via Script) -->
-    <div id="background-icons" class="fixed inset-0 pointer-events-none opacity-[0.03] z-0"></div>
-
-    <!-- Splash Screen -->
-    <div id="splash" class="fixed inset-0 z-[200] bg-[#FF5C00] flex flex-col items-center justify-center transition-opacity duration-700">
-        <div class="w-32 h-32 bg-white rounded-[2.5rem] flex items-center justify-center shadow-2xl scale-0" id="splash-logo">
-            <i data-lucide="utensils" class="text-[#FF5C00] w-16 h-16"></i>
-        </div>
-        <h1 class="text-4xl font-black text-white mt-8 tracking-tighter opacity-0" id="splash-title">FoodVerse</h1>
-        <p class="text-orange-100 text-sm font-bold tracking-[0.2em] uppercase mt-2 opacity-0" id="splash-sub">KSIT Campus Dining</p>
-    </div>
+<body class="text-[#431407] food-pattern">
 
     <!-- Navigation -->
-    <nav id="navbar" class="fixed top-0 w-full z-[150] px-6 py-4 flex items-center justify-between hidden">
-        <div class="bg-white px-6 py-3 rounded-full shadow-xl border border-slate-100 flex items-center gap-3 nav-matte">
-            <div class="bg-[#FF5C00] p-2 rounded-xl text-white">
-                <i data-lucide="utensils" size="18"></i>
+    <nav class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-orange-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-orange-600 rounded-2xl rotate-3 flex items-center justify-center text-white shadow-xl shadow-orange-200">
+                    <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight leading-none text-orange-950">CAMPUS<span class="text-orange-600">CRAVINGS</span></h1>
+                    <p class="text-[10px] uppercase tracking-[0.3em] font-bold text-orange-900/40">The Global Student Kitchen</p>
+                </div>
             </div>
-            <span class="font-black tracking-tighter dark:text-white">FoodVerse</span>
-        </div>
-        <div class="flex gap-3">
-            <button id="theme-toggle" class="w-12 h-12 rounded-full bg-white shadow-xl border border-slate-100 flex items-center justify-center transition-transform active:scale-90">
-                <i data-lucide="moon" size="20" id="theme-icon"></i>
-            </button>
-            <button class="w-12 h-12 rounded-full bg-white shadow-xl border border-white flex items-center justify-center overflow-hidden active:scale-90">
-                <img src="https://i.pravatar.cc/100?img=12" class="w-full h-full object-cover">
+
+            <button onclick="togglePlate()" class="relative flex items-center gap-4 bg-[#431407] text-white pl-6 pr-2 py-2 rounded-full hover:bg-orange-600 transition-all active:scale-95 group">
+                <span class="text-sm font-bold tracking-wide">My Order</span>
+                <div id="badge-count" class="bg-orange-500 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 border-[#431407] group-hover:border-orange-600 hidden">0</div>
             </button>
         </div>
     </nav>
 
-    <!-- VIEWS -->
-    
-    <!-- Auth View -->
-    <section id="view-auth" class="view min-h-screen flex items-center justify-center p-6 z-10 relative">
-        <div class="w-full max-w-md bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 matte-card">
-            <div class="text-center mb-10">
-                <div class="inline-flex items-center gap-2 mb-4 bg-orange-600 px-4 py-2 rounded-full shadow-lg">
-                    <i data-lucide="flame" class="text-white w-4 h-4"></i>
-                    <span class="text-white text-[10px] font-black uppercase tracking-widest">Hungry at KSIT?</span>
+    <!-- Header -->
+    <header class="pt-36 pb-12 px-4 text-center max-w-4xl mx-auto">
+        <span class="inline-block px-4 py-1.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-6 animate-slide-up">Open for Lunch & Dinner</span>
+        <h2 class="text-5xl md:text-7xl font-black mb-6 leading-[0.9] animate-slide-up" style="animation-delay: 0.1s">Fuel your <span class="text-orange-600 italic serif">ambition</span>, one bite at a time.</h2>
+        <p class="text-orange-900/60 text-lg md:text-xl font-medium animate-slide-up" style="animation-delay: 0.2s">Freshly cooked meals, personalized coupons, and seamless payments for the modern campus life.</p>
+    </header>
+
+    <!-- Filter Tabs -->
+    <div class="sticky top-20 z-40 bg-white/60 backdrop-blur-md border-y border-orange-100 py-6 mb-12">
+        <div class="max-w-7xl mx-auto px-4 flex gap-4 overflow-x-auto no-scrollbar justify-start md:justify-center">
+            <button onclick="filterCuisine('all')" class="cuisine-tab active px-8 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white shadow-sm border border-orange-50">🍽️ All Flavors</button>
+            <button onclick="filterCuisine('South Indian')" class="cuisine-tab px-8 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white shadow-sm border border-orange-50 hover:border-orange-200">🥥 South Indian</button>
+            <button onclick="filterCuisine('North Indian')" class="cuisine-tab px-8 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white shadow-sm border border-orange-50 hover:border-orange-200">🥘 North Indian</button>
+            <button onclick="filterCuisine('Chinese')" class="cuisine-tab px-8 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white shadow-sm border border-orange-50 hover:border-orange-200">🥢 Chinese</button>
+            <button onclick="filterCuisine('Italian')" class="cuisine-tab px-8 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white shadow-sm border border-orange-50 hover:border-orange-200">🍕 Italian</button>
+            <button onclick="filterCuisine('Desserts')" class="cuisine-tab px-8 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white shadow-sm border border-orange-50 hover:border-orange-200">🧁 Desserts</button>
+        </div>
+    </div>
+
+    <!-- Menu Grid -->
+    <main class="max-w-7xl mx-auto px-4 pb-40">
+        <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <!-- Items injected by JS -->
+        </div>
+    </main>
+
+    <!-- Floating Bar -->
+    <div id="floating-status-bar" class="status-hidden fixed bottom-10 left-1/2 -translate-x-1/2 w-[92%] max-w-lg z-50 bg-[#431407] text-white rounded-[2rem] shadow-2xl p-3 flex items-center justify-between border-4 border-orange-100/10">
+        <div class="flex items-center gap-4 pl-3">
+            <div class="relative">
+                <div class="w-12 h-12 bg-orange-600 rounded-xl rotate-6 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                 </div>
-                <h2 class="text-3xl font-black tracking-tight" id="auth-title">Welcome Back</h2>
-                <p class="text-slate-400 text-sm mt-2 font-medium">Grab your token and fuel your brain</p>
             </div>
-            <div class="space-y-4">
-                <input type="text" placeholder="College ID" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:ring-2 focus:ring-orange-500 outline-none">
-                <input type="password" placeholder="Password" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:ring-2 focus:ring-orange-500 outline-none">
-                <button onclick="switchView('home')" class="w-full bg-[#FF5C00] text-white font-black py-4 rounded-2xl shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-colors mt-4">Sign In Now</button>
-                <button class="w-full bg-white border border-slate-100 text-slate-700 font-bold py-3 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 shadow-sm">
-                    <i data-lucide="smartphone" size="18" class="text-blue-500"></i>
-                    Sign in with Campus ID
+            <div>
+                <p id="floating-count" class="text-xs font-black uppercase tracking-widest text-orange-400">0 Items Selected</p>
+                <p id="floating-price" class="text-lg font-bold">Total: ₹0.00</p>
+            </div>
+        </div>
+        <button onclick="togglePlate()" class="bg-white text-[#431407] px-8 py-3.5 rounded-[1.5rem] text-sm font-black hover:bg-orange-100 transition-all active:scale-95 shadow-xl">
+            Confirm Order
+        </button>
+    </div>
+
+    <!-- Plate Overlay -->
+    <div id="plate-overlay" onclick="togglePlate()" class="fixed inset-0 bg-orange-950/40 backdrop-blur-sm z-[60] hidden transition-opacity"></div>
+    
+    <!-- Plate Sidebar -->
+    <aside id="plate-sidebar" class="plate-sidebar hidden-right fixed top-0 right-0 h-full w-full max-w-md bg-white z-[70] shadow-2xl flex flex-col border-l border-orange-50">
+        <div class="p-8 border-b border-orange-50 flex items-center justify-between bg-orange-50/50">
+            <div>
+                <h3 class="text-2xl font-black text-orange-950">Your Plate</h3>
+                <p class="text-[10px] uppercase font-bold text-orange-800/40 tracking-widest">Order Summary</p>
+            </div>
+            <button onclick="togglePlate()" class="w-10 h-10 flex items-center justify-center hover:bg-orange-100 rounded-full transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div id="plate-items-container" class="flex-grow overflow-y-auto p-8 space-y-8 custom-scrollbar">
+            <!-- Items injected by JS -->
+        </div>
+
+        <!-- Extra Details Section -->
+        <div class="p-8 bg-white border-t border-orange-100 space-y-6">
+            <!-- Coupon Code -->
+            <div class="space-y-3">
+                <p class="text-[10px] font-black uppercase tracking-widest text-orange-800/40">Have a coupon?</p>
+                <div class="flex gap-2">
+                    <input type="text" id="coupon-input" placeholder="e.g. FRESHER20" class="flex-grow bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 placeholder:text-orange-900/20">
+                    <button onclick="applyCoupon()" class="bg-orange-950 text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-orange-700 transition-colors">Apply</button>
+                </div>
+                <p id="coupon-message" class="text-[11px] font-bold text-green-600 hidden"></p>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="space-y-3">
+                <p class="text-[10px] font-black uppercase tracking-widest text-orange-800/40">Payment Method</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="setPayment('upi')" id="pay-upi" class="payment-chip active flex-grow border-2 border-slate-100 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all">UPI / Scan</button>
+                    <button onclick="setPayment('wallet')" id="pay-wallet" class="payment-chip flex-grow border-2 border-slate-100 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all">Wallet</button>
+                    <button onclick="setPayment('cash')" id="pay-cash" class="payment-chip flex-grow border-2 border-slate-100 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all">Cash</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grand Total & Finalize -->
+        <div class="p-8 bg-orange-50 border-t border-orange-100 space-y-4">
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm text-orange-900/60 font-bold uppercase tracking-wider">
+                    <span>Subtotal</span>
+                    <span id="subtotal-amount">₹0.00</span>
+                </div>
+                <div id="discount-row" class="hidden flex justify-between text-sm text-green-600 font-bold uppercase tracking-wider">
+                    <span>Coupon Discount</span>
+                    <span id="discount-amount">-₹0.00</span>
+                </div>
+            </div>
+            
+            <div class="pt-4 border-t border-orange-100 flex justify-between items-end">
+                <div>
+                    <p class="text-[10px] font-black text-orange-800/40 uppercase tracking-widest">Total Payable</p>
+                    <span id="total-amount" class="text-4xl font-black text-orange-600 tracking-tight">₹0.00</span>
+                </div>
+                <button onclick="placeOrder()" id="checkout-btn" disabled class="bg-[#431407] text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest disabled:bg-orange-100 disabled:text-orange-300 disabled:cursor-not-allowed shadow-xl shadow-orange-900/10 transition-all">
+                    Finalize Order
                 </button>
             </div>
         </div>
-    </section>
+    </aside>
 
-    <!-- Home View -->
-    <section id="view-home" class="view pt-28 pb-32 px-6">
-        <div class="relative bg-[#FF5C00] rounded-[3.5rem] p-10 lg:p-20 overflow-hidden min-h-[450px] flex items-center shadow-2xl shadow-orange-600/30 mb-12">
-            <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200')] bg-cover bg-center mix-blend-soft-light opacity-30"></div>
-            <div class="relative z-10 max-w-2xl">
-                <h1 class="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-10">The KSIT <br><span class="text-orange-200">Feast.</span></h1>
-                <button onclick="switchView('menu')" class="bg-white text-orange-600 px-10 py-5 rounded-[2rem] font-black text-xl shadow-2xl active:scale-95 transition-transform">Order Now</button>
+    <!-- Success Modal -->
+    <div id="success-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-orange-950/80 backdrop-blur-lg">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl animate-slide-up border-8 border-orange-50">
+            <div class="w-20 h-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
             </div>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
-                <i data-lucide="clock" class="text-green-500 mb-3"></i>
-                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Avg Waiting</p>
-                <h4 class="text-3xl font-black tracking-tighter">8m</h4>
+            <h4 class="text-3xl font-black mb-2 text-orange-950">Feast Prep Started!</h4>
+            <p id="success-pay-method" class="text-[10px] font-black uppercase tracking-widest text-orange-900/30 mb-8">Payment Via UPI</p>
+            
+            <div class="bg-orange-600 rounded-3xl p-8 mb-8 text-white">
+                <span class="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Pick-up Token</span>
+                <div id="token-id" class="text-6xl font-black mt-2 tracking-tighter">#000</div>
             </div>
-            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
-                <i data-lucide="user" class="text-orange-500 mb-3"></i>
-                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Active Now</p>
-                <h4 class="text-3xl font-black tracking-tighter">42</h4>
-            </div>
-            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
-                <i data-lucide="zap" class="text-blue-500 mb-3"></i>
-                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Service</p>
-                <h4 class="text-3xl font-black tracking-tighter">Fast</h4>
-            </div>
-            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 matte-card">
-                <i data-lucide="award" class="text-purple-500 mb-3"></i>
-                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Quality</p>
-                <h4 class="text-3xl font-black tracking-tighter">100%</h4>
-            </div>
-        </div>
-    </section>
-
-    <!-- Menu View -->
-    <section id="view-menu" class="view pt-28 pb-40 px-6">
-        <h2 class="text-5xl font-black mb-8 tracking-tighter">Campus <span class="text-orange-600">Menu</span></h2>
-        <div class="relative mb-10">
-            <i data-lucide="search" class="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input id="menu-search" type="text" placeholder="What's for lunch?" class="w-full bg-white border border-slate-100 rounded-[2.5rem] py-6 pl-16 pr-8 focus:ring-4 focus:ring-orange-500/10 outline-none text-lg font-bold shadow-sm matte-card">
-        </div>
-
-        <div id="category-chips" class="flex gap-3 overflow-x-auto mb-12 no-scrollbar">
-            <!-- Populated by JS -->
-        </div>
-
-        <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <!-- Populated by JS -->
-        </div>
-    </section>
-
-    <!-- Checkout View -->
-    <section id="view-checkout" class="view pt-28 pb-32 px-6 max-w-2xl mx-auto">
-        <div class="flex items-center justify-between mb-12">
-            <h2 class="text-5xl font-black tracking-tighter">The <span class="text-[#FF5C00]">Bill</span></h2>
-            <button onclick="switchView('menu')" class="w-14 h-14 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm matte-card"><i data-lucide="x"></i></button>
-        </div>
-
-        <div id="cart-items-list" class="space-y-4 mb-12">
-            <!-- Populated by JS -->
-        </div>
-
-        <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 mb-8 shadow-sm matte-card">
-            <div class="flex items-center gap-3 mb-4">
-                <i data-lucide="ticket" class="text-orange-600"></i>
-                <span class="font-black text-sm tracking-tight">Student Coupons</span>
-            </div>
-            <div class="flex gap-2">
-                <input type="text" placeholder="Enter Code (e.g. KSIT50)" class="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold outline-none">
-                <button class="bg-slate-900 text-white px-6 rounded-2xl font-black text-xs uppercase active:scale-95">Apply</button>
-            </div>
-        </div>
-
-        <div class="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-xl matte-card">
-            <div class="space-y-3 mb-8">
-                <div class="flex justify-between text-slate-500 text-sm font-bold"><span>Subtotal</span><span id="subtotal">₹0</span></div>
-                <div class="flex justify-between text-slate-500 text-sm font-bold"><span>GST (5%)</span><span id="gst">₹0</span></div>
-                <div class="flex justify-between text-slate-500 text-sm font-bold"><span>Campus Fee</span><span>₹5</span></div>
-                <hr class="my-4">
-                <div class="flex justify-between items-center">
-                    <span class="font-black text-xl">Total</span>
-                    <span class="text-4xl font-black text-[#FF5C00] tracking-tighter" id="grand-total">₹0</span>
-                </div>
-            </div>
-            <button onclick="switchView('success')" class="w-full bg-[#FF5C00] text-white py-6 rounded-[2rem] font-black text-2xl shadow-2xl hover:bg-orange-700 active:scale-95 transition-all">Pay & Confirm</button>
-        </div>
-    </section>
-
-    <!-- Success View -->
-    <section id="view-success" class="view fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-6 text-center">
-        <div class="w-32 h-32 bg-[#22C55E] rounded-full flex items-center justify-center text-white mb-10 shadow-2xl" id="success-icon">
-            <i data-lucide="check-circle" size="60"></i>
-        </div>
-        <h2 class="text-5xl font-black mb-4 tracking-tighter">Order Placed!</h2>
-        <p class="text-slate-400 font-bold mb-12 text-lg">Your Token ID: <span class="text-[#FF5C00]">#KS-1024</span></p>
-
-        <div class="w-full max-w-lg bg-slate-50 p-10 rounded-[3rem] border border-slate-100 shadow-sm relative mb-12 matte-card text-left">
-            <p class="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">Live Tracking</p>
-            <div class="relative flex justify-between">
-                <div class="absolute top-6 left-0 w-full h-1 bg-slate-200 z-0"></div>
-                <div id="progress-line" class="absolute top-6 left-0 h-1 bg-orange-500 z-0 w-0"></div>
-                
-                <!-- Steps -->
-                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="0">
-                    <div class="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center border-4 border-white"><i data-lucide="check-circle" size="20"></i></div>
-                    <span class="text-[9px] font-black uppercase text-orange-600">Confirmed</span>
-                </div>
-                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="1">
-                    <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center border-4 border-white"><i data-lucide="chef-hat" size="20"></i></div>
-                    <span class="text-[9px] font-black uppercase text-slate-400">Cooking</span>
-                </div>
-                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="2">
-                    <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center border-4 border-white"><i data-lucide="package" size="20"></i></div>
-                    <span class="text-[9px] font-black uppercase text-slate-400">Ready</span>
-                </div>
-                <div class="relative z-10 flex flex-col items-center gap-2 step" data-step="3">
-                    <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center border-4 border-white"><i data-lucide="store" size="20"></i></div>
-                    <span class="text-[9px] font-black uppercase text-slate-400">Delivered</span>
-                </div>
-            </div>
-            <p id="tracking-status" class="mt-12 text-center text-xs font-bold">Wait for kitchen confirmation...</p>
-        </div>
-        <button onclick="switchView('home'); resetOrder();" class="bg-[#111827] text-white px-16 py-6 rounded-[2rem] font-black text-xl shadow-2xl">Order More</button>
-    </section>
-
-    <!-- Floating Cart -->
-    <div id="floating-cart" class="fixed bottom-10 left-1/2 -translate-x-1/2 w-[92%] max-w-lg z-[180] hidden">
-        <div class="bg-[#111827] p-5 rounded-[3rem] shadow-2xl flex items-center justify-between border border-white/5">
-            <div class="flex items-center gap-5 pl-2">
-                <div class="w-14 h-14 bg-[#FF5C00] rounded-[1.5rem] flex items-center justify-center text-white relative shadow-lg">
-                    <i data-lucide="shopping-bag"></i>
-                    <span id="cart-count" class="absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-[3px] border-[#111827]">0</span>
-                </div>
-                <div>
-                    <p id="cart-total" class="text-white text-2xl font-black tracking-tighter">₹0</p>
-                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Plate Ready</p>
-                </div>
-            </div>
-            <button onclick="switchView('checkout')" class="bg-white text-[#111827] px-8 py-4 rounded-[1.5rem] font-black text-sm flex items-center gap-2 shadow-lg active:scale-95 transition-transform">
-                View Bill <i data-lucide="arrow-right"></i>
-            </button>
+            <button onclick="closeModal()" class="w-full bg-[#431407] text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl">Back to Menu</button>
         </div>
     </div>
 
     <script>
-        // --- DATA ---
         const menuItems = [
-            { id: 1, name: "Royal Ghee Masala Dosa", price: 65, category: "South Indian", rating: 4.8, cal: 320, time: "10m", img: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=400" },
-            { id: 2, name: "Monster Paneer Burger", price: 95, category: "Fast Food", rating: 4.5, cal: 540, time: "12m", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400" },
-            { id: 3, name: "Schezwan Fried Rice", price: 80, category: "Chinese", rating: 4.2, cal: 410, time: "15m", img: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=400" },
-            { id: 4, name: "Chole Bhature", price: 90, category: "North Indian", rating: 4.8, cal: 720, time: "15m", img: "https://images.unsplash.com/photo-1626132646529-500dd19c4834?auto=format&fit=crop&w=400" },
-            { id: 5, name: "Sizzling Brownie", price: 120, category: "Desserts", rating: 4.9, cal: 650, time: "8m", img: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=400" },
-            { id: 6, name: "Classic Filter Coffee", price: 20, category: "Beverages", rating: 4.9, cal: 80, time: "5m", img: "https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&w=400" }
+            // South Indian
+            { id: 1, name: "Ghee Roast Dosa", price: 110, cuisine: "South Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=600&auto=format&fit=crop", desc: "Classic golden dosa roasted in pure ghee, served with 3 chutneys." },
+            { id: 2, name: "Steamed Idli Sambhar", price: 65, cuisine: "South Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?q=80&w=600&auto=format&fit=crop", desc: "Fluffy steamed rice cakes served with our signature vegetable stew." },
+            { id: 3, name: "Medu Vada Platter", price: 80, cuisine: "South Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1626132646529-500637532537?q=80&w=600&auto=format&fit=crop", desc: "Savoury lentil donuts, crunchy outside and cloud-like inside." },
+            { id: 4, name: "Onion Rava Masala", price: 135, cuisine: "South Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1630409351241-e90e7f5e434d?q=80&w=600&auto=format&fit=crop", desc: "Crispy semolina dosa with sautéed onions and spiced potato filling." },
+            { id: 5, name: "Curd Rice Bowl", price: 75, cuisine: "South Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1645177623570-ad485afb0701?q=80&w=600&auto=format&fit=crop", desc: "Tempered curd rice with mustard seeds, ginger, and curry leaves." },
+            
+            // North Indian
+            { id: 6, name: "Butter Chicken Meal", price: 260, cuisine: "North Indian", type: "non-veg", special: true, image: "https://images.unsplash.com/photo-1603894584134-f1c2baee4ef9?q=80&w=600&auto=format&fit=crop", desc: "Classic char-grilled chicken in creamy tomato gravy with Garlic Naan." },
+            { id: 7, name: "Paneer Tikka Masala", price: 210, cuisine: "North Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?q=80&w=600&auto=format&fit=crop", desc: "Smoky paneer cubes in a robust onion-tomato gravy." },
+            { id: 25, name: "Malai Kofta", price: 180, cuisine: "North Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1645177623570-ad485afb0701?q=80&w=600&auto=format&fit=crop", desc: "Soft paneer and vegetable balls in a rich, white creamy cashew gravy." },
+            { id: 9, name: "Chole Bhature", price: 120, cuisine: "North Indian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1596797038530-2c39fa81b487?q=80&w=600&auto=format&fit=crop", desc: "Spiced chickpeas served with puffed leavened bread and pickle." },
+            { id: 10, name: "Saffron Veg Biryani", price: 185, cuisine: "North Indian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1563379091339-0c9240f5d45c?q=80&w=600&auto=format&fit=crop", desc: "Fragrant basmati rice layered with garden fresh vegetables and spices." },
+
+            // Chinese (Extended)
+            { id: 11, name: "Hakka Veg Noodles", price: 145, cuisine: "Chinese", type: "veg", special: false, image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?q=80&w=600&auto=format&fit=crop", desc: "Wok-tossed thin noodles with crunchy seasonal greens." },
+            { id: 12, name: "Veg Dim Sums", price: 160, cuisine: "Chinese", type: "veg", special: true, image: "https://images.unsplash.com/photo-1563245332-69254693a131?q=80&w=600&auto=format&fit=crop", desc: "Hand-crafted steamed dumplings with ginger-soy dip." },
+            { id: 13, name: "Crispy Spring Rolls", price: 115, cuisine: "Chinese", type: "veg", special: false, image: "https://images.unsplash.com/photo-1606331107436-1e6628602ee5?q=80&w=600&auto=format&fit=crop", desc: "Golden pastry cylinders packed with seasoned glass noodles." },
+            { id: 26, name: "Chili Chicken Dry", price: 195, cuisine: "Chinese", type: "non-veg", special: true, image: "https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=600&auto=format&fit=crop", desc: "Battered chicken tossed with capsicum, onion, and dark soy." },
+            { id: 27, name: "Manchurian Gravy", price: 155, cuisine: "Chinese", type: "veg", special: false, image: "https://images.unsplash.com/photo-1637361890611-69854d19360e?q=80&w=600&auto=format&fit=crop", desc: "Vegetable fritters in a tangy ginger and garlic sauce." },
+            { id: 28, name: "Egg Fried Rice", price: 130, cuisine: "Chinese", type: "non-veg", special: false, image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?q=80&w=600&auto=format&fit=crop", desc: "Stir-fried rice with scrambled eggs and garden vegetables." },
+            { id: 29, name: "Schezwan Noodles", price: 150, cuisine: "Chinese", type: "veg", special: true, image: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?q=80&w=600&auto=format&fit=crop", desc: "Fiery red noodles infused with bold Schezwan spices." },
+
+            // Italian
+            { id: 14, name: "Margherita Pizza", price: 290, cuisine: "Italian", type: "veg", special: true, image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=600&auto=format&fit=crop", desc: "Classic hand-tossed crust with san marzano sauce and fresh basil." },
+            { id: 15, name: "Creamy Alfredo", price: 245, cuisine: "Italian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1473093226795-af9932fe5855?q=80&w=600&auto=format&fit=crop", desc: "Penne pasta in a rich parmesan cream sauce with hints of garlic." },
+            { id: 16, name: "Garlic Bread Sticks", price: 95, cuisine: "Italian", type: "veg", special: false, image: "https://images.unsplash.com/photo-1573140401552-3fab0b24306f?q=80&w=600&auto=format&fit=crop", desc: "Butter-toasted baguettes with fresh herbs and molten cheese." },
+
+            // Desserts
+            { id: 17, name: "NYC Cheesecake", price: 195, cuisine: "Desserts", type: "veg", special: true, image: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?q=80&w=600&auto=format&fit=crop", desc: "Velvety vanilla cheesecake on a buttery biscuit base." },
+            { id: 18, name: "Double Choco Lava", price: 155, cuisine: "Desserts", type: "veg", special: false, image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=600&auto=format&fit=crop", desc: "Gooey chocolate center that erupts with every bite." },
+            { id: 19, name: "Tiramisu Classic", price: 220, cuisine: "Desserts", type: "veg", special: true, image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?q=80&w=600&auto=format&fit=crop", desc: "Coffee-soaked ladyfingers layered with mascarpone cream." }
         ];
 
-        const categories = ["All", "South Indian", "North Indian", "Chinese", "Fast Food", "Beverages", "Desserts"];
-        let currentCategory = "All";
-        let cart = [];
-        let currentView = 'splash';
+        let plate = [];
+        let discountPercent = 0;
+        let selectedPayment = 'upi';
 
-        // --- STATE & UI HANDLERS ---
-        function switchView(viewId) {
-            const views = document.querySelectorAll('.view');
-            views.forEach(v => v.classList.remove('active'));
-            document.getElementById(`view-${viewId}`).classList.add('active');
-            currentView = viewId;
+        const coupons = {
+            "FRESHER20": 20,
+            "CRAVE10": 10,
+            "CAMPUS50": 50
+        };
 
-            // Handle Navbar visibility
-            const navbar = document.getElementById('navbar');
-            if (viewId === 'home' || viewId === 'menu') {
-                navbar.classList.remove('hidden');
-            } else {
-                navbar.classList.add('hidden');
-            }
-
-            // Handle Floating Cart
-            const fCart = document.getElementById('floating-cart');
-            if (cart.length > 0 && (viewId === 'home' || viewId === 'menu')) {
-                fCart.classList.remove('hidden');
-            } else {
-                fCart.classList.add('hidden');
-            }
-
-            // Initialize Progress Bar if Success
-            if (viewId === 'success') {
-                startOrderTracking();
-            }
-
-            gsap.fromTo(`#view-${viewId}`, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5 });
-        }
-
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark');
-            const isDark = document.body.classList.contains('dark');
-            const icon = document.getElementById('theme-icon');
-            icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-            lucide.createIcons();
-        }
-
-        function updateCart() {
-            const count = cart.reduce((acc, item) => acc + item.qty, 0);
-            const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-            
-            document.getElementById('cart-count').innerText = count;
-            document.getElementById('cart-total').innerText = `₹${total}`;
-            
-            // Toggle floating cart
-            const fCart = document.getElementById('floating-cart');
-            if (count > 0 && (currentView === 'home' || currentView === 'menu')) {
-                fCart.classList.remove('hidden');
-            } else {
-                fCart.classList.add('hidden');
-            }
-
-            // Update Checkout Page
-            renderCartItems();
-        }
-
-        function addToCart(itemId) {
-            const item = menuItems.find(i => i.id === itemId);
-            const existing = cart.find(i => i.id === itemId);
-            if (existing) {
-                existing.qty++;
-            } else {
-                cart.push({ ...item, qty: 1 });
-            }
-            updateCart();
-        }
-
-        function changeQty(itemId, delta) {
-            const item = cart.find(i => i.id === itemId);
-            if (item) {
-                item.qty += delta;
-                if (item.qty <= 0) {
-                    cart = cart.filter(i => i.id !== itemId);
-                }
-            }
-            updateCart();
-        }
-
-        function renderMenu() {
-            const grid = document.getElementById('menu-grid');
-            grid.innerHTML = '';
-            
-            const search = document.getElementById('menu-search').value.toLowerCase();
-            
-            menuItems.forEach(item => {
-                if ((currentCategory === 'All' || item.category === currentCategory) && 
-                    item.name.toLowerCase().includes(search)) {
-                    const card = `
-                        <div class="bg-white rounded-[3rem] p-5 border border-slate-100 matte-card group hover:shadow-2xl transition-all">
-                            <div class="relative h-56 overflow-hidden rounded-[2.5rem] mb-6">
-                                <img src="${item.img}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
-                                <div class="absolute top-5 left-5 bg-[#FF5C00] px-4 py-1.5 rounded-full text-white text-[9px] font-black uppercase tracking-widest">${item.category}</div>
-                            </div>
-                            <div class="px-2">
-                                <h4 class="font-black text-2xl mb-2 tracking-tight">${item.name}</h4>
-                                <div class="flex items-center gap-4 text-slate-400 text-[10px] font-black mb-6 uppercase tracking-widest">
-                                    <span>${item.time}</span> • <span>${item.cal} cal</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-3xl font-black">₹${item.price}</span>
-                                    <button onclick="addToCart(${item.id})" class="bg-[#FF5C00] text-white w-14 h-14 rounded-3xl flex items-center justify-center shadow-xl active:scale-90 transition-transform">
-                                        <i data-lucide="plus" size="28"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    grid.innerHTML += card;
+        function filterCuisine(cuisine) {
+            const tabs = document.querySelectorAll('.cuisine-tab');
+            tabs.forEach(tab => {
+                if (tab.innerText.toLowerCase().includes(cuisine.toLowerCase()) || (cuisine === 'all' && tab.innerText.includes('All'))) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
                 }
             });
-            lucide.createIcons();
+            renderMenu(cuisine);
         }
 
-        function renderCartItems() {
-            const list = document.getElementById('cart-items-list');
-            list.innerHTML = '';
-            let sub = 0;
+        function cancelDishIfNoImage(imgElement) {
+            const card = imgElement.closest('.dish-card');
+            if (card) { card.remove(); checkEmptyMenu(); }
+        }
 
-            cart.forEach(item => {
-                sub += item.price * item.qty;
-                const row = `
-                    <div class="bg-white p-5 rounded-[2.5rem] flex items-center gap-6 border border-slate-50 shadow-sm matte-card">
-                        <img src="${item.img}" class="w-20 h-20 object-cover rounded-3xl">
-                        <div class="flex-1">
-                            <h4 class="font-black text-lg tracking-tight">${item.name}</h4>
-                            <p class="text-[#FF5C00] font-black">₹${item.price * item.qty}</p>
-                        </div>
-                        <div class="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl">
-                            <button onclick="changeQty(${item.id}, -1)" class="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400"><i data-lucide="minus" size="16"></i></button>
-                            <span class="font-black text-base w-4 text-center">${item.qty}</span>
-                            <button onclick="changeQty(${item.id}, 1)" class="w-8 h-8 rounded-xl flex items-center justify-center text-orange-600"><i data-lucide="plus" size="16"></i></button>
+        function checkEmptyMenu() {
+            const grid = document.getElementById('menu-grid');
+            if (grid.children.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-orange-900/40 font-bold uppercase tracking-widest">No available dishes in this section</div>';
+            }
+        }
+
+        function renderMenu(cuisine = 'all') {
+            const grid = document.getElementById('menu-grid');
+            const items = cuisine === 'all' ? menuItems : menuItems.filter(i => i.cuisine === cuisine);
+            
+            grid.innerHTML = items.map(item => `
+                <div class="animate-slide-up group flex flex-col dish-card" id="dish-${item.id}">
+                    <div class="relative mb-6 overflow-hidden rounded-[2.5rem] aspect-[5/6] bg-orange-100 shadow-xl transform-gpu">
+                        <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover" onerror="cancelDishIfNoImage(this)">
+                        <div class="absolute top-4 left-4 z-10 flex gap-2">
+                            <span class="bg-white/90 backdrop-blur-md p-1.5 rounded-full border border-white shadow-sm flex items-center justify-center">
+                                <div class="w-3 h-3 rounded-full ${item.type === 'veg' ? 'bg-green-500' : 'bg-red-500'} ring-4 ring-white/30"></div>
+                            </span>
+                            ${item.special ? `<span class="bg-orange-600 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em]">Chef's Special</span>` : ''}
                         </div>
                     </div>
-                `;
-                list.innerHTML += row;
-            });
-
-            const gst = Math.round(sub * 0.05);
-            document.getElementById('subtotal').innerText = `₹${sub}`;
-            document.getElementById('gst').innerText = `₹${gst}`;
-            document.getElementById('grand-total').innerText = `₹${sub + gst + 5}`;
-            lucide.createIcons();
+                    <div class="px-2 flex-grow">
+                        <div class="flex justify-between items-start mb-1">
+                            <h3 class="font-black text-xl text-orange-950 tracking-tight leading-tight">${item.name}</h3>
+                            <span class="font-black text-orange-600 text-lg">₹${item.price}</span>
+                        </div>
+                        <p class="text-[11px] font-medium text-orange-900/50 mb-6 leading-relaxed">${item.desc}</p>
+                    </div>
+                    <button onclick="addToPlate(${item.id})" class="w-full bg-white text-orange-950 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] border-2 border-orange-50 hover:bg-[#431407] hover:text-white transition-all active:scale-95">Add to Plate</button>
+                </div>
+            `).join('');
         }
 
-        function startOrderTracking() {
-            let currentStep = 0;
-            const progressLine = document.getElementById('progress-line');
-            const statusText = document.getElementById('tracking-status');
-            const steps = document.querySelectorAll('.step');
-            const messages = [
-                "Wait for kitchen confirmation...",
-                "Chef is preparing your meal...",
-                "Order is ready at the counter!",
-                "Feast enjoyed! Thank you."
-            ];
+        function addToPlate(itemId) {
+            const item = menuItems.find(i => i.id === itemId);
+            const existing = plate.find(p => p.id === itemId);
+            if (existing) { existing.quantity += 1; } 
+            else { plate.push({ ...item, quantity: 1 }); }
+            updatePlateUI();
+        }
 
-            function updateProgress() {
-                progressLine.style.width = `${(currentStep / 3) * 100}%`;
-                statusText.innerText = messages[currentStep];
-                
-                steps.forEach((s, i) => {
-                    const iconBox = s.querySelector('div');
-                    const label = s.querySelector('span');
-                    if (i <= currentStep) {
-                        iconBox.classList.remove('bg-slate-200', 'text-slate-400');
-                        iconBox.classList.add('bg-orange-500', 'text-white');
-                        label.classList.remove('text-slate-400');
-                        label.classList.add('text-orange-600');
-                    }
-                });
+        function updateQuantity(id, delta) {
+            const item = plate.find(p => p.id === id);
+            if (!item) return;
+            item.quantity += delta;
+            if (item.quantity <= 0) { plate = plate.filter(p => p.id !== id); }
+            updatePlateUI();
+        }
 
-                if (currentStep < 3) {
-                    currentStep++;
-                    setTimeout(updateProgress, 5000);
-                }
+        function applyCoupon() {
+            const input = document.getElementById('coupon-input').value.toUpperCase();
+            const message = document.getElementById('coupon-message');
+            
+            if (coupons[input]) {
+                discountPercent = coupons[input];
+                message.innerText = `Coupon Applied! You saved ${discountPercent}%`;
+                message.classList.replace('text-red-600', 'text-green-600');
+                message.classList.remove('hidden');
+            } else {
+                discountPercent = 0;
+                message.innerText = "Invalid Coupon Code";
+                message.classList.replace('text-green-600', 'text-red-600');
+                message.classList.remove('hidden');
             }
-            updateProgress();
+            updatePlateUI();
         }
 
-        function resetOrder() {
-            cart = [];
-            updateCart();
+        function setPayment(method) {
+            selectedPayment = method;
+            document.querySelectorAll('.payment-chip').forEach(chip => chip.classList.remove('active'));
+            document.getElementById(`pay-${method}`).classList.add('active');
         }
 
-        // --- INITIALIZATION ---
-        window.onload = () => {
-            lucide.createIcons();
+        function updatePlateUI() {
+            const container = document.getElementById('plate-items-container');
+            const badge = document.getElementById('badge-count');
+            const checkoutBtn = document.getElementById('checkout-btn');
+            const floatingBar = document.getElementById('floating-status-bar');
+            
+            const count = plate.reduce((sum, item) => sum + item.quantity, 0);
+            const sub = plate.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+            const discountAmount = (sub * discountPercent) / 100;
+            const finalTotal = sub - discountAmount;
 
-            // Background Animation
-            const bgContainer = document.getElementById('background-icons');
-            const bgIcons = ['utensils', 'coffee', 'leaf', 'star'];
-            for (let i = 0; i < 20; i++) {
-                const el = document.createElement('div');
-                el.className = 'absolute';
-                el.innerHTML = `<i data-lucide="${bgIcons[i % 4]}" class="opacity-10"></i>`;
-                el.style.left = `${Math.random() * 100}%`;
-                el.style.top = `${Math.random() * 100}%`;
-                bgContainer.appendChild(el);
+            if (count > 0) {
+                floatingBar.classList.replace('status-hidden', 'status-visible');
+                document.getElementById('floating-count').innerText = `${count} Item${count > 1 ? 's' : ''} Selected`;
+                document.getElementById('floating-price').innerHTML = `Total: ₹${finalTotal.toFixed(2)}`;
+            } else {
+                floatingBar.classList.replace('status-visible', 'status-hidden');
             }
-            lucide.createIcons();
 
-            // Splash Sequence
-            gsap.to("#splash-logo", { scale: 1, duration: 1, ease: "back.out(1.7)" });
-            gsap.to("#splash-title", { opacity: 1, y: -10, duration: 1, delay: 0.5 });
-            gsap.to("#splash-sub", { opacity: 1, y: -5, duration: 1, delay: 0.8 });
+            if (plate.length === 0) {
+                container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 text-center uppercase text-[10px] font-black tracking-widest">Plate is empty</div>`;
+                badge.classList.add('hidden');
+                checkoutBtn.disabled = true;
+            } else {
+                container.innerHTML = plate.map(item => `
+                    <div class="flex gap-4 items-center animate-slide-up">
+                        <img src="${item.image}" class="w-16 h-16 rounded-2xl object-cover shadow-lg">
+                        <div class="flex-grow">
+                            <h4 class="font-black text-orange-950 text-sm">${item.name}</h4>
+                            <p class="text-xs font-black text-orange-600">₹${item.price}</p>
+                        </div>
+                        <div class="flex items-center gap-3 bg-orange-50 p-1 rounded-xl">
+                            <button onclick="updateQuantity(${item.id}, -1)" class="w-7 h-7 bg-white rounded-lg font-black text-orange-950 shadow-sm">-</button>
+                            <span class="text-xs font-black">${item.quantity}</span>
+                            <button onclick="updateQuantity(${item.id}, 1)" class="w-7 h-7 bg-white rounded-lg font-black text-orange-950 shadow-sm">+</button>
+                        </div>
+                    </div>
+                `).join('');
+                badge.innerText = count;
+                badge.classList.remove('hidden');
+                checkoutBtn.disabled = false;
+            }
 
-            setTimeout(() => {
-                document.getElementById('splash').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('splash').style.display = 'none';
-                    switchView('auth');
-                }, 700);
-            }, 3000);
+            document.getElementById('subtotal-amount').innerHTML = `₹${sub.toFixed(2)}`;
+            
+            if (discountAmount > 0) {
+                document.getElementById('discount-row').classList.remove('hidden');
+                document.getElementById('discount-amount').innerHTML = `-₹${discountAmount.toFixed(2)}`;
+            } else {
+                document.getElementById('discount-row').classList.add('hidden');
+            }
 
-            // Category Chips
-            const chipContainer = document.getElementById('category-chips');
-            categories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.className = `flex-shrink-0 px-8 py-3.5 rounded-full font-black text-[11px] uppercase tracking-[0.2em] shadow-sm transition-all border border-slate-100 matte-card ${cat === 'All' ? 'bg-[#FF5C00] text-white' : 'bg-white text-slate-400'}`;
-                btn.innerText = cat;
-                btn.onclick = () => {
-                    currentCategory = cat;
-                    document.querySelectorAll('#category-chips button').forEach(b => {
-                        b.classList.remove('bg-[#FF5C00]', 'text-white');
-                        b.classList.add('bg-white', 'text-slate-400');
-                    });
-                    btn.classList.add('bg-[#FF5C00]', 'text-white');
-                    renderMenu();
-                };
-                chipContainer.appendChild(btn);
-            });
+            document.getElementById('total-amount').innerHTML = `₹${finalTotal.toFixed(2)}`;
+        }
 
-            // Search listener
-            document.getElementById('menu-search').oninput = renderMenu;
-            document.getElementById('theme-toggle').onclick = toggleDarkMode;
+        function togglePlate() {
+            document.getElementById('plate-sidebar').classList.toggle('hidden-right');
+            document.getElementById('plate-overlay').classList.toggle('hidden');
+        }
 
-            renderMenu();
-        };
+        function placeOrder() {
+            const token = Math.floor(100 + Math.random() * 899);
+            document.getElementById('token-id').innerText = `#${token}`;
+            
+            const methods = { upi: "UPI / Scan", wallet: "Campus Wallet", cash: "Cash at Counter" };
+            document.getElementById('success-pay-method').innerText = `Payment Mode: ${methods[selectedPayment]}`;
+            
+            document.getElementById('success-modal').classList.replace('hidden', 'flex');
+            togglePlate();
+        }
+
+        function closeModal() {
+            document.getElementById('success-modal').classList.replace('flex', 'hidden');
+            plate = [];
+            discountPercent = 0;
+            document.getElementById('coupon-input').value = '';
+            document.getElementById('coupon-message').classList.add('hidden');
+            updatePlateUI();
+        }
+
+        window.onload = () => renderMenu();
     </script>
 </body>
 </html>
